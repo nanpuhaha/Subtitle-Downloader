@@ -59,22 +59,14 @@ def auto_choose_best_streams(args: CmdArgs, streams: List[Stream]) -> List[Strea
                 target_stream = stream
         # 在上面的检查中确实设置了流 则返回其索引
         # 这里其实返回流更合理 但是上一级其他位置一直用的索引 所以这里先不改
-        if target_stream:
-            return streams.index(target_stream)
-        # 否则返回None 交由上一级判断
-        return target_stream
+        return streams.index(target_stream) if target_stream else target_stream
+
     best_audio_stream_index = choose_best_stream_by_type('audio')
     best_video_stream_index = choose_best_stream_by_type('video')
     if args.audio_only:
-        if best_audio_stream_index is not None:
-            return [best_audio_stream_index]
-        else:
-            return []
+        return [best_audio_stream_index] if best_audio_stream_index is not None else []
     if args.video_only:
-        if best_video_stream_index is not None:
-            return [best_video_stream_index]
-        else:
-            return []
+        return [best_video_stream_index] if best_video_stream_index is not None else []
     target_streams = []
     if best_audio_stream_index is not None:
         target_streams.append(best_audio_stream_index)
@@ -90,13 +82,13 @@ def get_selected_index(length: int) -> list:
     except EOFError:
         return []
     if text == '':
-        return [index for index in range(length + 1)]
+        return list(range(length + 1))
     elif text.isdigit():
         return [int(text)]
     elif '-' in text and len(text.split('-')) == 2:
         start, end = text.split('-')
         if start.strip().isdigit() and end.strip().isdigit():
-            return [index for index in range(int(start.strip()), int(end.strip()) + 1)]
+            return list(range(int(start.strip()), int(end.strip()) + 1))
     elif text.replace(' ', '').isdigit():
         for index in text.split(' '):
             if index.strip().isdigit():
@@ -255,11 +247,11 @@ class Downloader:
         self.terminate = True
 
     def do_select(self, streams: List[Stream], selected: list = []):
-        if len(selected) > 0:
+        if selected:
             return selected
         if streams is None:
             return
-        if len(streams) == 0:
+        if not streams:
             return
         for index, stream in enumerate(streams):
             stream.show_info(index, show_init=self.args.show_init,
@@ -282,13 +274,10 @@ class Downloader:
         elif self.args.resolution != '':
             selected = auto_choose_resolution(self.args, streams)
         else:
-            selected = [index for index in range(len(streams))]
+            selected = list(range(len(streams)))
         if self.args.live is False:
             return selected
-        skeys = []
-        for select in selected:
-            skeys.append(streams[select].get_skey())
-        return skeys
+        return [streams[select].get_skey() for select in selected]
 
     def download_streams(self, streams: List[Stream], selected: list = []):
         selected = self.do_select(streams, selected)
@@ -300,12 +289,13 @@ class Downloader:
         for index, stream in enumerate(streams):
             if self.terminate is True:
                 break
-            if self.args.live is False:
-                if index not in selected:
-                    continue
-            else:
-                if stream.get_skey() not in selected:
-                    continue
+            if (
+                self.args.live is False
+                and index not in selected
+                or self.args.live is not False
+                and stream.get_skey() not in selected
+            ):
+                continue
             if self.args.live is False and len(stream.segments) == 1:
                 logger.warning(
                     f'only one segment, download speed maybe slow =>\n{stream.segments[0].url + self.args.url_patch}')
@@ -451,6 +441,7 @@ class Downloader:
                 task.remove_done_callback(_done_callback)
             for task in filter(lambda task: not task.done(), tasks):
                 task.cancel()
+
         # limit_per_host 根据不同网站和网络状况调整 如果与目标地址连接性较好 那么设置小一点比较好
         count, completed, _left = get_left_segments(stream)
         logger.debug(
@@ -476,7 +467,7 @@ class Downloader:
             tasks.add(task)
             if self.args.gen_init_only and count == 0:
                 break
-        if len(tasks) == 0:
+        if not tasks:
             return results
         logger.debug(f'{len(tasks)} tasks start')
         # 阻塞并等待运行完成
@@ -501,9 +492,9 @@ class Downloader:
                     flag = False
                     self.xprogress.decrease_total_count()
                     segment.skip_concat = True
-                    if resp.status == 404:
-                        segment.max_retry_404 -= 1
-                if resp.status == 405:
+                if resp.status == 404:
+                    segment.max_retry_404 -= 1
+                elif resp.status == 405:
                     status = 'STATUS_CODE_ERROR'
                     flag = False
                 if resp.status in self.args.redl_code:
@@ -528,7 +519,7 @@ class Downloader:
                             break
                         segment.content.append(data)
                         self.xprogress.add_downloaded_size(len(data))
-                        if _flag is False:
+                        if not _flag:
                             stream.filesize += len(data)
                             logger.debug(
                                 f'{segment.name} recv {size} byte data')
@@ -560,7 +551,8 @@ class Downloader:
             return segment, status, False
         self.xprogress.add_downloaded_count(1)
         logger.debug(
-            f'{segment.name} download end, size => {sum([len(data) for data in segment.content])}')
+            f'{segment.name} download end, size => {sum(len(data) for data in segment.content)}'
+        )
         return segment, 'SUCCESS', await self.decrypt(segment, stream)
 
     async def decrypt(self, segment: Segment, stream: Stream) -> bool:
@@ -568,7 +560,7 @@ class Downloader:
         解密部分
         '''
         if self.args.disable_auto_decrypt is True:
-            logger.debug(f'--disable-auto-decrypt, skip decrypt')
+            logger.debug('--disable-auto-decrypt, skip decrypt')
             return segment.dump()
         if segment.is_encrypt() and segment.is_supported_encryption():
             logger.debug(

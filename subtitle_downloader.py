@@ -126,10 +126,10 @@ def main() -> None:
             _("\nPlease input correct url!"))
         sys.exit(0)
 
-    service = next((service for service in service_map
-                   if service['keyword'] in args.url), None)
-
-    if service:
+    if service := next(
+        (service for service in service_map if service['keyword'] in args.url),
+        None,
+    ):
         log = logging.getLogger(service['class'].__module__)
         if args.debug:
             log.setLevel(DEBUG)

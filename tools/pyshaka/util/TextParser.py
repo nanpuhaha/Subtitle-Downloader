@@ -29,10 +29,7 @@ class TextParser:
         if self.atEnd():
             return None
         ret = self.readRegex(regex)
-        if not ret:
-            return None
-        else:
-            return ret[index]
+        return None if not ret else ret[index]
 
     def readRegex(self, regex: str):
         index = self.indexOf_(regex)
@@ -43,12 +40,10 @@ class TextParser:
         return index.results
 
     def indexOf_(self, regex: str):
-        # assert 1 == 0, 'not implemented yet'
-        results = re.search(regex, self.data_[self.position_:])
-        if not results:
-            return
-        else:
+        if results := re.search(regex, self.data_[self.position_ :]):
             return IndexOf(results)
+        else:
+            return
 
 
 class IndexOf:

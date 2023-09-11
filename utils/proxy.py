@@ -69,7 +69,7 @@ def get_nordvpn_proxy(region: str) -> str:
                 " - NordVPN doesn't contain any servers for the country \"{%s}\"", region)
             sys.exit(1)
         proxy += hostname
-    return proxy + ":89"  # https: 89, http: 80
+    return f"{proxy}:89"
 
 
 def get_nordvpn_server(country: str) -> Optional[str]:

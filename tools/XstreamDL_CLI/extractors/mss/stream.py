@@ -72,10 +72,7 @@ class MSSStream(Stream):
 
     def get_ism_params(self):
         height_width = self.resolution.split('x')
-        if len(height_width) == 2:
-            height, width = height_width
-        else:
-            height, width = 0, 0
+        height, width = height_width if len(height_width) == 2 else (0, 0)
         return {
             'fourcc': self.codecs,
             'duration': int(self.duration),
@@ -146,7 +143,7 @@ class MSSStream(Stream):
             codecs = 'VP9'
         if codecs != 'AACL' and re.match('aac*', codecs.lower()):
             codecs = 'AAC'
-        if codecs.lower() in ['wvtt', 'ttml']:
+        if codecs.lower() in {'wvtt', 'ttml'}:
             codecs = codecs.upper()
         self.codecs = codecs
 

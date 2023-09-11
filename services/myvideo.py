@@ -76,7 +76,7 @@ class MyVideo(Service):
                     for episode in soup.find_all('span', class_='episodeIntro'):
                         episode = episode.find('a')
                         episode_search = re.search(r'第(\d+)集', episode.text)
-                        if episode_search and not '預告' in episode.text:
+                        if episode_search and '預告' not in episode.text:
                             episode_list.append({
                                 'index': int(episode_search.group(1)),
                                 'id': os.path.basename(episode['href']),
@@ -125,12 +125,8 @@ class MyVideo(Service):
         if res.ok:
             if res.json().get('msg') == 'success':
                 return True
-            else:
-                self.logger.error(res.text)
-                sys.exit(1)
-        else:
-            self.logger.error(res.text)
-            sys.exit(1)
+        self.logger.error(res.text)
+        sys.exit(1)
 
     def get_media_info(self, content_id, filename):
 
@@ -202,12 +198,14 @@ class MyVideo(Service):
         if res.ok:
             soup = BeautifulSoup(res.text, 'html.parser')
             data = ''
-            release_year = ''
-            for meta in soup.find_all('li', class_='introList'):
-                if meta.text.isdigit() and len(meta.text) == 4:
-                    release_year = meta.text
-                    break
-
+            release_year = next(
+                (
+                    meta.text
+                    for meta in soup.find_all('li', class_='introList')
+                    if meta.text.isdigit() and len(meta.text) == 4
+                ),
+                '',
+            )
             for meta in soup.find_all('script', type='application/ld+json'):
                 if 'VideoObject' not in meta.text:
                     data = orjson.loads(meta.text)
@@ -221,7 +219,7 @@ class MyVideo(Service):
                     season_list = []
                     for season in soup.find('ul', class_='seasonSelectorList').find_all('a'):
                         season_search = re.search(r'第(.+?)季', season.text)
-                        if season_search and not '國語版' in season.text:
+                        if season_search and '國語版' not in season.text:
                             season_list.append({
                                 'index': int(cn2an(season_search.group(1))),
                                 'url': f"https://www.myvideo.net.tw/{season['href']}",

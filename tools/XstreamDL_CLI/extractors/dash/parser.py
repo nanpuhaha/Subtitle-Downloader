@@ -66,31 +66,27 @@ class DASHParser(BaseParser):
             return previous_base_url
         base_url_element = None  # type: BaseURL
         # 多个BaseURL则根据serviceLocation选择 否则选择第一个
-        if len(elements) == 1:
+        if len(elements) != 1 and not self.args.service or len(elements) == 1:
             base_url_element = elements[0]
         else:
-            # 没有指定 serviceLocation 则选第一个
-            if not self.args.service:
-                base_url_element = elements[0]
-            else:
-                # 如果BaseURL本身有serviceLocation 那么先尝试完全匹配
+            # 如果BaseURL本身有serviceLocation 那么先尝试完全匹配
+            for _element in elements:
+                if not _element.serviceLocation:
+                    continue
+                if _element.serviceLocation == self.args.service:
+                    base_url_element = _element
+                    break
+            if base_url_element is None:
+                # 不行再部分匹配
                 for _element in elements:
                     if not _element.serviceLocation:
                         continue
-                    if _element.serviceLocation == self.args.service:
+                    if self.args.service.lower() in _element.serviceLocation.lower():
                         base_url_element = _element
                         break
-                if base_url_element is None:
-                    # 不行再部分匹配
-                    for _element in elements:
-                        if not _element.serviceLocation:
-                            continue
-                        if self.args.service.lower() in _element.serviceLocation.lower():
-                            base_url_element = _element
-                            break
-                if base_url_element is None:
-                    # 还不行说明没有serviceLocation 那就选第一个
-                    base_url_element = elements[0]
+            if base_url_element is None:
+                # 还不行说明没有serviceLocation 那就选第一个
+                base_url_element = elements[0]
         # 先取内容
         base_url = base_url_element.innertext
         # 根据不同情况进行修正
@@ -104,7 +100,7 @@ class DASHParser(BaseParser):
             while base_url.startswith('../'):
                 previous_base_url = '/'.join(previous_base_url.split("/")[:-1])
                 base_url = base_url[3:]
-            return previous_base_url + '/' + base_url
+            return f'{previous_base_url}/{base_url}'
         if base_url.startswith('/'):
             items = previous_base_url.split('/')
             if len(items) >= 3:
@@ -178,8 +174,7 @@ class DASHParser(BaseParser):
             base_url = self.fix_dash_base_url(uri_item.base_url, adaptationset)
             current_uri_item = uri_item.new_base_url(base_url)
             if adaptationset.mimeType == 'image/jpeg':
-                logger.debug(
-                    f'skip parse for AdaptationSet mimeType image/jpeg')
+                logger.debug('skip parse for AdaptationSet mimeType image/jpeg')
                 continue
             representations = adaptationset.find(
                 'Representation')  # type: List[Representation]
@@ -320,7 +315,7 @@ class DASHParser(BaseParser):
                 stream.set_init_url(stream.base_url)
             else:
                 # set baseurls[0].innertext.strip() ?
-                stream.set_init_url('../' + stream.base_url)
+                stream.set_init_url(f'../{stream.base_url}')
             # stream.set_segment_duration(-1)
             return
         segmenttemplates = representation.find(
@@ -332,10 +327,8 @@ class DASHParser(BaseParser):
             # 不止一个可能是没见过的类型 提醒上报
             if len(segmenttemplates) > 1:
                 logger.error('please report this DASH content.')
-            else:
-                # logger.warning('stream has no SegmentTemplate between Representation tag.')
-                if stream.base_url.startswith('http'):
-                    stream.set_init_url(stream.base_url)
+            elif stream.base_url.startswith('http'):
+                stream.set_init_url(stream.base_url)
             return
         if len(segmenttemplates[0].find('SegmentTimeline')) == 0:
             self.generate_v1(period, representation.id,
@@ -376,9 +369,6 @@ class DASHParser(BaseParser):
                 _lang = re.match('.*?as=audio_(.*?)\)', init_url).groups()[0]
                 stream.set_lang(_lang)
             stream.set_init_url(init_url)
-        else:
-            # 这种情况可能是因为流是字幕
-            pass
         target_r = 0  # type: int
         ss = segmenttimeline.find('S')  # type: List[S]
         if len(ss) > 0 and self.is_live and ss[0].t > 0:
@@ -401,7 +391,7 @@ class DASHParser(BaseParser):
                     f'start_utctime {start_utctime} current_utctime {current_utctime}')
             tmp_t = ss[0].t
             for s in ss:
-                for number in range(s.r):
+                for _ in range(s.r):
                     if (tmp_t + s.d) / st.timescale + start_utctime > current_utctime:
                         base_time = tmp_t
                         if self.args.log_level == 'DEBUG':
@@ -417,8 +407,8 @@ class DASHParser(BaseParser):
                 logger.debug(
                     f'{representation.id} report mpd to me, maybe need wait {current_utctime - start_utctime - tmp_t / st.timescale}s')
             assert base_time is not None, f'{representation.id} report mpd to me, maybe need wait {current_utctime - start_utctime - tmp_t / st.timescale}s'
-            # if base_time is None:
-            #     base_time = ss[0].t
+                # if base_time is None:
+                #     base_time = ss[0].t
         elif ss[0].t > 0:
             base_time = ss[0].t
             logger.debug(f'ss[0].t > 0, set base_time {base_time}')
@@ -433,16 +423,13 @@ class DASHParser(BaseParser):
         for index, s in enumerate(ss):
             if self.args.multi_s and index > 0 and s.t > 0:
                 base_time = s.t
-            if st.timescale == 0:
-                interval = 0
-            else:
-                interval = s.d / st.timescale
+            interval = 0 if st.timescale == 0 else s.d / st.timescale
             if s.r == -1:
                 _range = math.ceil(
                     (period.duration or self.root.mediaPresentationDuration) / interval)
             else:
                 _range = s.r
-            for number in range(_range):
+            for _ in range(_range):
                 tmp_offset_r += 1
                 if self.is_live and tmp_offset_r < target_r:
                     continue
@@ -498,7 +485,7 @@ class DASHParser(BaseParser):
                 (self.root.publishTime.timestamp() - start_utctime) / interval)
             max_repeat = math.ceil(self.root.minimumUpdatePeriod / interval)
             repeat = 0
-            for i in range(max_repeat):
+            for _ in range(max_repeat):
                 repeat += 1
                 if (number_start + repeat) * interval + start_utctime > current_utctime:
                     break

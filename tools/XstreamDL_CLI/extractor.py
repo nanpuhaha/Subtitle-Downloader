@@ -40,7 +40,7 @@ class Extractor:
             try:
                 raw_text = data.decode('utf-16')
             except Exception as e:
-                logger.error(f'load_raw2text failed', exc_info=e)
+                logger.error('load_raw2text failed', exc_info=e)
         return raw_text
 
     def fetch_metadata(self, uri: str, parent_stream: Stream = None):
@@ -61,12 +61,10 @@ class Extractor:
             _file_name = uri
         illegal_symbols = ["\\", "/", ":", "：", "*",
                            "?", "\"", "<", ">", "|", "\r", "\n", "\t"]
-        is_illegal_path = True
-        for illegal_symbol in illegal_symbols:
-            if illegal_symbol in _file_name:
-                is_illegal_path = False
-                break
-        if is_illegal_path is False:
+        is_illegal_path = all(
+            illegal_symbol not in _file_name for illegal_symbol in illegal_symbols
+        )
+        if not is_illegal_path:
             return
         if Path(uri).exists() is False:
             return
@@ -115,7 +113,7 @@ class Extractor:
         streams = []
         for stream in _streams:
             # 针对master类型加载详细内容
-            if stream.tag != '#EXT-X-STREAM-INF' and stream.tag != '#EXT-X-MEDIA':
+            if stream.tag not in ['#EXT-X-STREAM-INF', '#EXT-X-MEDIA']:
                 streams.append(stream)
                 continue
             if self.args.hide_load_metadata:
@@ -138,9 +136,7 @@ class Extractor:
 
     def parse_as_dash(self, uri_type: str, uri: str, content: str, parent_stream: DASHStream = None) -> List[DASHStream]:
         self.parser = DASHParser(self.args, uri_type)
-        streams = self.parser.parse(uri, content)
-        return streams
+        return self.parser.parse(uri, content)
 
     def parse_as_mss(self, uri_type: str, uri: str, content: str, parent_stream: MSSStream = None) -> List[MSSStream]:
-        streams = MSSParser(self.args, uri_type).parse(uri, content)
-        return streams
+        return MSSParser(self.args, uri_type).parse(uri, content)

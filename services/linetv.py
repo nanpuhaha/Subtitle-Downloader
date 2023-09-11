@@ -32,9 +32,7 @@ class LineTV(Service):
 
     def series_metadata(self, data, drama_id):
         if 'drama_name' in data:
-            season_search = re.search(
-                r'(.+?)第(.+?)季', data['drama_name'])
-            if season_search:
+            if season_search := re.search(r'(.+?)第(.+?)季', data['drama_name']):
                 title = season_search.group(1).strip()
                 season_name = cn2an(
                     season_search.group(2))
@@ -58,26 +56,25 @@ class LineTV(Service):
                                  season_index,
                                  episode_num,
                                  season_index)
-            else:
-                if data['current_eps'] != data['total_eps']:
-                    self.logger.info(self._("\nSeason %s total: %s episode(s)\tupdate to episode %s\tdownload all episodes\n---------------------------------------------------------------"),
-                                     season_index,
-                                     data['total_eps'],
-                                     episode_num)
-                else:
-                    self.logger.info(self._("\nSeason %s total: %s episode(s)\tdownload all episodes\n---------------------------------------------------------------"),
-                                     season_index,
-                                     episode_num)
+            elif data['current_eps'] == data['total_eps']:
+                self.logger.info(self._("\nSeason %s total: %s episode(s)\tdownload all episodes\n---------------------------------------------------------------"),
+                                 season_index,
+                                 episode_num)
 
+            else:
+                self.logger.info(self._("\nSeason %s total: %s episode(s)\tupdate to episode %s\tdownload all episodes\n---------------------------------------------------------------"),
+                                 season_index,
+                                 data['total_eps'],
+                                 episode_num)
             if os.path.exists(folder_path):
                 shutil.rmtree(folder_path)
 
             if 'eps_info' in data:
                 subtitles = []
                 for episode in data['eps_info']:
-                    if 'number' in episode:
-                        episode_index = int(episode['number'])
-                        if not self.download_season or season_index in self.download_season:
+                    if not self.download_season or season_index in self.download_season:
+                        if 'number' in episode:
+                            episode_index = int(episode['number'])
                             if not self.download_episode or episode_index in self.download_episode:
                                 subtitle_link = self.config['api']['sub_1'].format(
                                     drama_id=drama_id, episode_name=episode_index)
@@ -104,10 +101,7 @@ class LineTV(Service):
                                                 break
 
                                 os.makedirs(folder_path, exist_ok=True)
-                                subtitle = dict()
-                                subtitle['name'] = filename
-                                subtitle['path'] = folder_path
-                                subtitle['url'] = subtitle_link
+                                subtitle = {'name': filename, 'path': folder_path, 'url': subtitle_link}
                                 subtitles.append(subtitle)
 
                 self.download_subtitle(
@@ -122,10 +116,9 @@ class LineTV(Service):
     def main(self):
         """Download subtitle from LineTV"""
 
-        drama_id_search = re.search(
-            r'https:\/\/www\.linetv\.tw\/drama\/(.+?)\/eps\/1', self.url)
-
-        if drama_id_search:
+        if drama_id_search := re.search(
+            r'https:\/\/www\.linetv\.tw\/drama\/(.+?)\/eps\/1', self.url
+        ):
             drama_id = drama_id_search.group(1)
         else:
             self.logger.error("\nCan't detect content id: %s", self.url)
@@ -134,10 +127,9 @@ class LineTV(Service):
         res = self.session.get(url=self.url, timeout=5)
 
         if res.ok:
-            match = re.search(
-                r'window\.__INITIAL_STATE__ = (\{.*\})', res.text)
-
-            if match:
+            if match := re.search(
+                r'window\.__INITIAL_STATE__ = (\{.*\})', res.text
+            ):
                 data = orjson.loads(match.group(1))
                 data = data['entities']['dramaInfo']['byId'][drama_id]
                 self.series_metadata(data, drama_id)

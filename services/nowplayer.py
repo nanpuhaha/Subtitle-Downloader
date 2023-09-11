@@ -56,9 +56,9 @@ class NowPlayer(Service):
                 self.config['api']['movie'].format(product_id=content_id), timeout=5).json()[0]['episodeTitle']
 
             release_year = ''
-            movie_info = self.get_title_info(
-                title=chinese_title, title_aliases=[title])
-            if movie_info:
+            if movie_info := self.get_title_info(
+                title=chinese_title, title_aliases=[title]
+            ):
                 release_year = movie_info['release_date'][:4]
 
             if release_year:
@@ -121,8 +121,8 @@ class NowPlayer(Service):
                                  episode_num)
 
             for episode in episode_list:
-                episode_index = int(episode['episodeNum'])
                 if not self.download_season or season_index in self.download_season:
+                    episode_index = int(episode['episodeNum'])
                     if not self.download_episode or episode_index in self.download_episode:
                         content_id = episode['episodeId']
                         filename = f'{name}E{str(episode_index).zfill(2)}'
@@ -156,10 +156,9 @@ class NowPlayer(Service):
                         self._("\nPlease renew the cookies, and make sure user_config.toml's User-Agent is same as %s in the browser!"), self.platform)
                     os.remove(
                         Path(config.directories['cookies']) / credentials[self.platform]['cookies'])
-                    sys.exit(1)
                 else:
                     self.logger.error("\nError: %s", data.get('responseCode'))
-                    sys.exit(1)
+                sys.exit(1)
         else:
             self.logger.error(self._("Failed to get tracks: %s"), res.text)
             sys.exit(1)

@@ -25,9 +25,7 @@ def load_toml(path: Union[Path, str]) -> dict:
 
     if not isinstance(path, Path):
         path = Path(path)
-    if not path.is_file():
-        return {}
-    return rtoml.load(path)
+    return {} if not path.is_file() else rtoml.load(path)
 
 
 def rename_filename(filename):
@@ -84,8 +82,7 @@ def download_files(files, headers=None):
 
     cpus = multiprocessing.cpu_count()
     max_pool_size = 8
-    pool = multiprocessing.Pool(
-        cpus if cpus < max_pool_size else max_pool_size)
+    pool = multiprocessing.Pool(min(cpus, max_pool_size))
 
     lang_paths = []
     for file in sorted(files, key=itemgetter('name')):

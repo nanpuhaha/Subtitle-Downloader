@@ -21,9 +21,7 @@ class HLSSegment(Segment):
             return False
 
     def is_supported_encryption(self):
-        if self.xkey is not None and self.xkey.method.upper() in ['AES-128']:
-            return True
-        return False
+        return self.xkey is not None and self.xkey.method.upper() in ['AES-128']
 
     def set_duration(self, line: str):
         try:
@@ -88,7 +86,7 @@ class HLSSegment(Segment):
         如果已经因为#EXT-X-KEY而设置过xkey了
         那就不使用之前分段的xkey了
         '''
-        if last_segment_has_xkey is False:
+        if not last_segment_has_xkey:
             return
         if self.has_set_key is True:
             return

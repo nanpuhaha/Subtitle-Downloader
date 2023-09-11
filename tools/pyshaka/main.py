@@ -38,12 +38,9 @@ def loop_nestedCues(lines: List[str], nestedCues: List[Cue], index: int, segment
         if len(cue.nestedCues) > 0:
             loop_nestedCues(lines, cue.nestedCues, index, segment_time)
         if cue.payload != '':
-            if payload == '':
-                payload = cue.payload
-            else:
-                payload = f'{payload} {cue.payload}'
-        # 这里突然想不起注释掉的原因了 好像是会重复...
-        # lines.append(cue)
+            payload = cue.payload if payload == '' else f'{payload} {cue.payload}'
+            # 这里突然想不起注释掉的原因了 好像是会重复...
+            # lines.append(cue)
     cue = nestedCues[0]
     payload = payload
     if payload != '':
@@ -127,7 +124,7 @@ def parse(args: CmdArgs):
     cues.sort(key=compare)
     if args.debug:
         log.debug(f'cues count {len(cues)}')
-    assert len(cues) > 0, 'ohh, it is a bug...'
+    assert cues, 'ohh, it is a bug...'
     # 去重
     # 1. 如果当前行的endTime等于下一行的startTime 并且下一行内容与当前行相同 取下一行的endTime作为当前行的endTime 然后去除下一行
     # 2. 否则将下一行作为当前行 再次进行比较 直到比较结束
@@ -159,9 +156,8 @@ def parse(args: CmdArgs):
     # 先用列表放内容 最后join
     contents = ["WEBVTT"]  # type: List[str]
     for cue in cues_fix:
-        settings = cue._settings
-        if settings:
-            settings = ' ' + settings
+        if settings := cue._settings:
+            settings = f' {settings}'
             contents.append(
                 f'{gentm(cue.startTime)} --> {gentm(cue.endTime)}{settings}\n{cue.payload}')
         else:

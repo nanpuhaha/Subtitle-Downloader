@@ -26,7 +26,7 @@ class Mp4VttParser:
         # log.info('parseInit start')
 
         def mdhd_callback(box: ParsedBox):
-            assert box.version == 0 or box.version == 1, 'MDHD version can only be 0 or 1'
+            assert box.version in [0, 1], 'MDHD version can only be 0 or 1'
             parsedMDHDBox = Mp4BoxParsers.parseMDHD(box.reader, box.version)
             self.timescale_ = parsedMDHDBox.timescale
 
@@ -63,7 +63,7 @@ class Mp4VttParser:
             nonlocal baseTime
             nonlocal sawTFDT
             sawTFDT = True
-            assert box.version == 0 or box.version == 1, 'TFDT version can only be 0 or 1'
+            assert box.version in [0, 1], 'TFDT version can only be 0 or 1'
             parsedTFDTBox = Mp4BoxParsers.parseTFDT(box.reader, box.version)
             baseTime = parsedTFDTBox.baseMediaDecodeTime
 

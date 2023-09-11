@@ -43,9 +43,7 @@ class BaseParser:
             rm_manifest = True
         if '.ism' in uri and 'manifest' in uri:
             rm_manifest = True
-        name = self.args.name
-        if self.uri_type == 'path':
-            name = Path(uri).stem
+        name = Path(uri).stem if self.uri_type == 'path' else self.args.name
         home_url, base_url = '', ''
         if uri.startswith('http://') or uri.startswith('https://') or uri.startswith('ftp://'):
             uris = uri.split('?', maxsplit=1)

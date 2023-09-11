@@ -57,9 +57,6 @@ class Mp4BoxParsers:
 
     @staticmethod
     def parseTFHD(reader: DataViewReader, flags: int) -> ParsedTFHDBox:
-        defaultSampleDuration = None
-        defaultSampleSize = None
-
         # Read "track_ID"
         trackId = reader.readUint32()
 
@@ -71,14 +68,8 @@ class Mp4BoxParsers:
         if flags & 0x000002:
             reader.skip(4)
 
-        # Read "default_sample_duration" if present.
-        if flags & 0x000008:
-            defaultSampleDuration = reader.readUint32()
-
-        # Read "default_sample_size" if present.
-        if flags & 0x000010:
-            defaultSampleSize = reader.readUint32()
-
+        defaultSampleDuration = reader.readUint32() if flags & 0x000008 else None
+        defaultSampleSize = reader.readUint32() if flags & 0x000010 else None
         return ParsedTFHDBox(**{
             'trackId': trackId,
             'defaultSampleDuration': defaultSampleDuration,

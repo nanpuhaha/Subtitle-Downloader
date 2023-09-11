@@ -92,10 +92,7 @@ class Stream:
             # 这里会过滤掉init分段
             if segment.index == -1:
                 continue
-            if compare_with_url:
-                _url = segment.url
-            else:
-                _url = urlparse(segment.url).path
+            _url = segment.url if compare_with_url else urlparse(segment.url).path
             if _url in url_paths:
                 continue
             segment.set_offset_for_name(
@@ -106,9 +103,15 @@ class Stream:
 
     def calc(self):
         self.duration = sum(
-            [segment.duration for segment in self.segments if segment.skip_concat is False])
+            segment.duration
+            for segment in self.segments
+            if segment.skip_concat is False
+        )
         self.filesize = sum(
-            [segment.filesize for segment in self.segments if segment.skip_concat is False])
+            segment.filesize
+            for segment in self.segments
+            if segment.skip_concat is False
+        )
         self.filesize = self.filesize / 1024 / 1024
 
     def get_name(self):
@@ -120,17 +123,19 @@ class Stream:
 
     def check_record_time(self, live_duration: float):
         # 修正calc计算后 直接比较当前流的 duration 即可
-        if live_duration == 0.0:
-            return False
-        return self.duration >= live_duration
+        return False if live_duration == 0.0 else self.duration >= live_duration
 
     def get_init_msg(self, show_init: bool = False):
-        if show_init is False:
+        if not show_init:
             return ''
-        for _ in self.segments:
-            if _.segment_type == 'init':
-                return ' initialization -> ' + _.url.split('?')[0].split('/')[-1]
-        return ''
+        return next(
+            (
+                ' initialization -> ' + _.url.split('?')[0].split('/')[-1]
+                for _ in self.segments
+                if _.segment_type == 'init'
+            ),
+            '',
+        )
 
     def fix_name(self, index: int, index_to_name: bool = False):
         if index_to_name:
@@ -168,8 +173,7 @@ class Stream:
             self.save_dir.mkdir()
         keys = []
         if len(self.streamkeys) > 0:
-            for streamkey in self.streamkeys:
-                keys.append(streamkey.dump())
+            keys.extend(streamkey.dump() for streamkey in self.streamkeys)
         info = {
             'name': self.get_name(),
             'path': self.save_dir.resolve().as_posix(),
@@ -203,7 +207,7 @@ class Stream:
             return url
         elif url.startswith('/'):
             return f'{self.home_url}{url}'
-        elif url == '':
+        elif not url:
             return f'{self.base_url}'
         else:
             return f'{self.base_url}/{url}'
@@ -211,7 +215,7 @@ class Stream:
     def concat(self, args: CmdArgs):
         ''' 合并视频 '''
         out = Path(self.save_dir.absolute().as_posix() + self.suffix)
-        if args.overwrite is False and out.exists() is True:
+        if args.overwrite is False and out.exists():
             logger.info(
                 f'{t_msg.try_to_concat} {self.get_name()} {t_msg.cancel_concat_reason_1}')
             return True

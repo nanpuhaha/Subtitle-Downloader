@@ -59,10 +59,7 @@ class DASHKey(StreamKey):
             method = 'MARLIN'
         elif cp.schemeIdUri == 'urn:uuid:9a04f079-9840-4286-ab92-e65be0885f95':
             mspr_pros = cp.find('mspr:pros')  # type: List[CencPssh]
-            if len(mspr_pros) > 0:
-                mspr_pro = mspr_pros[0].innertext
-            else:
-                mspr_pro = ''
+            mspr_pro = mspr_pros[0].innertext if len(mspr_pros) > 0 else ''
             key = PLAYREADY(cp.schemeIdUri, mspr_pro)
             method = 'PLAYREADY'
         elif cp.schemeIdUri == 'urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed':
@@ -76,7 +73,4 @@ class DASHKey(StreamKey):
 
     def get_pssh(self, cp: ContentProtection) -> str:
         cenc_psshs = cp.find('cenc:pssh')  # type: List[CencPssh]
-        if len(cenc_psshs) > 0:
-            return cenc_psshs[0].innertext
-        else:
-            return ''
+        return cenc_psshs[0].innertext if len(cenc_psshs) > 0 else ''

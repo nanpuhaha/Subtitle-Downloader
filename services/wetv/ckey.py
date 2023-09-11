@@ -26,7 +26,7 @@ class CKey:
 
         t = 0
         u = 0
-        for i in range(256):
+        for _ in range(256):
             v = u ^ u << 1 ^ u << 2 ^ u << 3 ^ u << 4
             v = CKey.rshift(v, 8) ^ 255 & v ^ 99
             d[t] = v
@@ -68,11 +68,10 @@ class CKey:
 
     @staticmethod
     def decode_text(arr, length):
-        text_array = []
-        for i in range(length):
-            text_array.append('{:02x}'.format(
-                CKey.rshift(arr[i // 4], 24 - i % 4 * 8) & 255))
-
+        text_array = [
+            '{:02x}'.format(CKey.rshift(arr[i // 4], 24 - i % 4 * 8) & 255)
+            for i in range(length)
+        ]
         return ''.join(text_array)
 
     @staticmethod

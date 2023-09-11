@@ -104,9 +104,9 @@ class Daemon:
             downloader.download_streams(streams, selected=skeys)
             # 检查是不是主动退出了
             if downloader.terminate:
-                logger.debug(f'downloader terminated break')
+                logger.debug('downloader terminated break')
                 break
-            # 继续循环
+                # 继续循环
         downloader.try_concat_streams(streams, skeys)
 
     def live_record_hls(self, extractor: Extractor, streams: List[HLSStream]):
@@ -116,9 +116,8 @@ class Daemon:
         assert False, 'not support hls live stream, wait plz'
 
     def streams_extend(self, streams: List[DASHStream], next_streams: List[DASHStream], skeys: List[str]):
-        _streams = dict((stream.get_skey(), stream) for stream in streams)
-        _next_streams = dict((stream.get_skey(), stream)
-                             for stream in next_streams)
+        _streams = {stream.get_skey(): stream for stream in streams}
+        _next_streams = {stream.get_skey(): stream for stream in next_streams}
         for skey in skeys:
             _stream = _streams.get(skey)  # type: DASHStream
             _next_stream = _next_streams.get(skey)  # type: DASHStream

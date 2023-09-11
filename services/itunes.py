@@ -51,13 +51,10 @@ class iTunes(Service):
                 if media.uri:
                     media_uri = media.uri
 
-                sub = {}
-                sub['lang'] = sub_lang
-
                 self.logger.debug(media_uri)
 
-                sub['urls'] = []
-                if not sub_lang in languages:
+                sub = {'lang': sub_lang, 'urls': []}
+                if sub_lang not in languages:
                     segments = m3u8.load(media_uri)
                     for uri in segments.files:
                         sub['urls'].append(urljoin(segments.base_uri, uri))
@@ -85,11 +82,12 @@ class iTunes(Service):
             self.logger.debug(filename, len(sub['urls']))
 
             for url in sub['urls']:
-                subtitle = dict()
-                subtitle['name'] = filename
-                subtitle['path'] = lang_folder_path
-                subtitle['url'] = url
-                subtitle['segment'] = True
+                subtitle = {
+                    'name': filename,
+                    'path': lang_folder_path,
+                    'url': url,
+                    'segment': True,
+                }
                 subtitles.append(subtitle)
 
         self.download_subtitle(subtitles=subtitles,
@@ -127,9 +125,10 @@ class iTunes(Service):
         res = self.session.get(url=self.url, headers=headers, timeout=5)
 
         if res.ok:
-            match = re.search(
-                r'<script type=\"fastboot\/shoebox\" id=\"shoebox-ember-data-store\">(.+?)<\/script>', res.text)
-            if match:
+            if match := re.search(
+                r'<script type=\"fastboot\/shoebox\" id=\"shoebox-ember-data-store\">(.+?)<\/script>',
+                res.text,
+            ):
                 movie = orjson.loads(match.group(1).strip())[movie_id]
                 title = movie['data']['attributes']['name']
                 release_year = movie['data']['attributes']['releaseDate'][:4]

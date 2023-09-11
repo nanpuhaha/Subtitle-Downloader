@@ -55,9 +55,13 @@ class AppleTVPlus(Service):
         if data['playables'][playable_id].get('assets'):
             m3u8_url = data['playables'][playable_id]['assets']['hlsUrl']
         elif data['playables'][playable_id].get('itunesMediaApiData'):
-            hd_item = next(item for item in data['playables'][playable_id]['itunesMediaApiData']
-                           ['offers'] if item['kind'] == 'rent' and item['variant'] == 'HD')
-            if hd_item:
+            if hd_item := next(
+                item
+                for item in data['playables'][playable_id]['itunesMediaApiData'][
+                    'offers'
+                ]
+                if item['kind'] == 'rent' and item['variant'] == 'HD'
+            ):
                 m3u8_url = hd_item['hlsUrl']
 
         if not m3u8_url:
@@ -201,9 +205,7 @@ class AppleTVPlus(Service):
                 if media.characteristics:
                     sub_lang += '-sdh'
 
-                sub = {}
-                sub['lang'] = sub_lang
-                sub['m3u8_url'] = urljoin(media.base_uri, media.uri)
+                sub = {'lang': sub_lang, 'm3u8_url': urljoin(media.base_uri, media.uri)}
                 languages.add(sub_lang)
                 sub_url_list.append(sub)
 
@@ -213,9 +215,7 @@ class AppleTVPlus(Service):
         subtitle_list = []
         for sub in sub_url_list:
             if sub['lang'] in self.subtitle_language:
-                subtitle = {}
-                subtitle['lang'] = sub['lang']
-                subtitle['urls'] = []
+                subtitle = {'lang': sub['lang'], 'urls': []}
                 segments = m3u8.load(sub['m3u8_url'])
                 for uri in segments.files:
                     subtitle['urls'].append(urljoin(segments.base_uri, uri))
@@ -245,11 +245,12 @@ class AppleTVPlus(Service):
             self.logger.debug(filename, len(sub['urls']))
 
             for url in sub['urls']:
-                subtitle = dict()
-                subtitle['name'] = filename
-                subtitle['path'] = lang_folder_path
-                subtitle['url'] = url
-                subtitle['segment'] = True
+                subtitle = {
+                    'name': filename,
+                    'path': lang_folder_path,
+                    'url': url,
+                    'segment': True,
+                }
                 subtitles.append(subtitle)
 
         self.download_subtitle(subtitles, languages)
@@ -258,9 +259,9 @@ class AppleTVPlus(Service):
         """Loads environment config data from WEB App's <meta> tag."""
         res = self.session.get('https://tv.apple.com', timeout=5)
         if res.ok:
-            env = re.search(
-                r'web-tv-app/config/environment"[\s\S]*?content="([^"]+)', res.text)
-            if env:
+            if env := re.search(
+                r'web-tv-app/config/environment"[\s\S]*?content="([^"]+)', res.text
+            ):
                 data = orjson.loads(unquote(env[1]))
                 token = data['MEDIA_API']['token']
                 self.logger.debug("token: %s", token)
@@ -308,8 +309,7 @@ class AppleTVPlus(Service):
             'x-apple-music-user-token': self.cookies['media-user-token']
         })
 
-        configurations = self.get_configurations()
-        if configurations:
+        if configurations := self.get_configurations():
             self.config['device'] = configurations
 
         res = self.session.get(self.config['api']['title'].format(

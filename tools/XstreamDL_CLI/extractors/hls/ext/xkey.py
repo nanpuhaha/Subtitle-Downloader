@@ -85,7 +85,7 @@ class XKey(X):
         elif self.uri.startswith('/'):
             return 'http', home_url + self.uri
         else:
-            return 'http', base_url + '/' + self.uri
+            return 'http', f'{base_url}/{self.uri}'
 
     async def fetch(self, url: str, args: CmdArgs) -> bytes:
         if args.proxy != '':
