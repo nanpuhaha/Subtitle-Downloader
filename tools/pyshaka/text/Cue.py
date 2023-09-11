@@ -140,21 +140,20 @@ class Cue:
         if cue1.startTime != cue2.startTime or cue1.endTime != cue2.endTime or cue1.payload != cue2.payload:
             return False
         for k, v in cue1.__dict__.items():
-            if k == 'startTime' or k == 'endTime' or k == 'payload':
-                pass
-            elif k == 'nestedCues':
+            if k in ['startTime', 'endTime', 'payload']:
+                continue
+            if k == 'nestedCues':
                 if not Cue.equal(cue1.nestedCues, cue2.nestedCues):
                     return False
-            elif k == 'region' or k == 'cellResolution':
+            elif k in ['region', 'cellResolution']:
                 for k2 in cue1.__getattribute__(k):
                     if cue1.__getattribute__(k)[k2] != cue2.__getattribute__(k)[k2]:
                         return False
             elif isinstance(cue1.__getattribute__(k), list):
                 if cue1.__getattribute__(k) != cue2.__getattribute__(k):
                     return False
-            else:
-                if cue1.__getattribute__(k) != cue1.__getattribute__(k):
-                    return False
+            elif cue1.__getattribute__(k) != cue1.__getattribute__(k):
+                return False
         return True
 
 

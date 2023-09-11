@@ -20,7 +20,7 @@ class X:
         data = line.split(':', maxsplit=1)
         if len(data) == 2:
             _, no_tag_line = data
-        elif len(data) == 0:
+        elif not data:
             raise 'm3u8格式错误 无法处理的异常'
         else:
             no_tag_line = data[0]

@@ -215,8 +215,11 @@ class HBOGOAsia(Service):
 
             category = data['metadata']['categories'][0]
 
-            available_languages = tuple([get_language_code(
-                media['lang']) for media in data['materials'] if media['type'] == 'subtitle'])
+            available_languages = tuple(
+                get_language_code(media['lang'])
+                for media in data['materials']
+                if media['type'] == 'subtitle'
+            )
 
             get_all_languages(available_languages=available_languages,
                               subtitle_language=self.subtitle_language, locale_=self.locale)
@@ -228,12 +231,12 @@ class HBOGOAsia(Service):
                     self.logger.debug(media)
                     sub_lang = get_language_code(media['lang'])
                     if sub_lang in self.subtitle_language:
-                        if len(self.subtitle_language) > 1:
-                            if category == 'SERIES':
-                                lang_folder_path = os.path.join(
-                                    folder_path, sub_lang)
-                            else:
-                                lang_folder_path = folder_path
+                        if (
+                            len(self.subtitle_language) > 1
+                            and category == 'SERIES'
+                        ):
+                            lang_folder_path = os.path.join(
+                                folder_path, sub_lang)
                         else:
                             lang_folder_path = folder_path
                         lang_paths.add(lang_folder_path)
@@ -250,10 +253,11 @@ class HBOGOAsia(Service):
 
                         os.makedirs(lang_folder_path,
                                     exist_ok=True)
-                        subtitle = dict()
-                        subtitle['name'] = subtitle_filename
-                        subtitle['path'] = lang_folder_path
-                        subtitle['url'] = subtitle_link
+                        subtitle = {
+                            'name': subtitle_filename,
+                            'path': lang_folder_path,
+                            'url': subtitle_link,
+                        }
                         subtitles.append(subtitle)
             return subtitles, lang_paths
         else:
@@ -299,9 +303,9 @@ class HBOGOAsia(Service):
 
         self.login()
         if '/sr' in self.url:
-            series_id_regex = re.search(
-                r'https:\/\/www\.hbogoasia.+\/sr(\d+)', self.url)
-            if series_id_regex:
+            if series_id_regex := re.search(
+                r'https:\/\/www\.hbogoasia.+\/sr(\d+)', self.url
+            ):
                 series_id = series_id_regex.group(1)
                 series_url = self.config['api']['tvseason'].format(
                     parent_id=series_id, territory=self.territory)

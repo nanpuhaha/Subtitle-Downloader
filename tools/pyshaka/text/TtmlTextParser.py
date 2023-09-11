@@ -28,10 +28,7 @@ class RateInfo_:
         except Exception:
             self.tickRate = 0
         if self.tickRate == 0:
-            if frameRate:
-                self.tickRate = self.frameRate * self.subFrameRate
-            else:
-                self.tickRate = 1
+            self.tickRate = self.frameRate * self.subFrameRate if frameRate else 1
         if frameRateMultiplier:
             multiplierResults = re.findall(
                 '^(\d+) (\d+)$', frameRateMultiplier)
@@ -54,7 +51,7 @@ class TtmlTextParser:
         cues = []  # type: List[Cue]
         xml = None
 
-        if text == '':
+        if not text:
             return cues
         try:
             xml = parseString(text)
@@ -81,7 +78,7 @@ class TtmlTextParser:
         spaceStyle = tt.getAttribute('xml:space') or 'default'
         extent = tt.getAttributeNS(ttsNs, 'extent')
 
-        if spaceStyle != 'default' and spaceStyle != 'preserve':
+        if spaceStyle not in ['default', 'preserve']:
             raise InvalidXML(f'Invalid xml:space value: {spaceStyle}')
         whitespaceTrim = spaceStyle == 'default'
         rateInfo = RateInfo_(frameRate, subFrameRate,
@@ -91,44 +88,67 @@ class TtmlTextParser:
         metadatas = tt.getElementsByTagName('metadata')  # type: List[Element]
         metadataElements = []
         if len(metadatas) > 0:
-            for childNode in metadatas[0].childNodes:
-                if isinstance(childNode, Element):
-                    metadataElements.append(childNode)
+            metadataElements.extend(
+                childNode
+                for childNode in metadatas[0].childNodes
+                if isinstance(childNode, Element)
+            )
         styles = tt.getElementsByTagName('style')  # type: List[Element]
         regionElements = tt.getElementsByTagName(
             'region')  # type: List[Element]
         cueRegions = []
 
         for region in regionElements:
-            cueRegion = TtmlTextParser.parseCueRegion_(region, styles, extent)
-            if cueRegion:
+            if cueRegion := TtmlTextParser.parseCueRegion_(region, styles, extent):
                 cueRegions.append(cueRegion)
 
         body = bodys[0]
-        if len([childNode for childNode in body.childNodes if isinstance(childNode, Element) and childNode.tagName == 'p']) > 0:
+        if [
+            childNode
+            for childNode in body.childNodes
+            if isinstance(childNode, Element) and childNode.tagName == 'p'
+        ]:
             raise InvalidTextCue('<p> can only be inside <div> in TTML')
         for divNode in body.childNodes:
-            if isinstance(divNode, Element) is False:
+            if not isinstance(divNode, Element):
                 continue
             if divNode.tagName != 'div':
                 continue
             has_p = False
             for pChildren in divNode.childNodes:
-                if isinstance(pChildren, Element) is False:
+                if not isinstance(pChildren, Element):
                     continue
                 if pChildren.tagName == 'span':
                     raise InvalidTextCue(
                         '<span> can only be inside <p> in TTML')
                 if pChildren.tagName == 'p':
                     has_p = True
-                    cue = TtmlTextParser.parseCue_(pChildren, time.periodStart, rateInfo, metadataElements,
-                                                   styles, regionElements, cueRegions, whitespaceTrim, False, cellResolutionInfo)
-                    if cue:
+                    if cue := TtmlTextParser.parseCue_(
+                        pChildren,
+                        time.periodStart,
+                        rateInfo,
+                        metadataElements,
+                        styles,
+                        regionElements,
+                        cueRegions,
+                        whitespaceTrim,
+                        False,
+                        cellResolutionInfo,
+                    ):
                         cues.append(cue)
-            if not has_p:
-                cue = TtmlTextParser.parseCue_(divNode, time.periodStart, rateInfo, metadataElements,
-                                               styles, regionElements, cueRegions, whitespaceTrim, False, cellResolutionInfo)
-                if cue:
+            if cue := TtmlTextParser.parseCue_(
+                divNode,
+                time.periodStart,
+                rateInfo,
+                metadataElements,
+                styles,
+                regionElements,
+                cueRegions,
+                whitespaceTrim,
+                False,
+                cellResolutionInfo,
+            ):
+                if not has_p:
                     cues.append(cue)
         return cues
 
@@ -160,9 +180,7 @@ class TtmlTextParser:
         hasTimeAttributes = cueElement.hasAttribute(
             'begin') or cueElement.hasAttribute('end') or cueElement.hasAttribute('dur')
         if not hasTimeAttributes and not hasTextContent and cueElement.tagName != 'br':
-            if not isNested:
-                return None
-            elif localWhitespaceTrim:
+            if not isNested or localWhitespaceTrim:
                 return None
         start, end = TtmlTextParser.parseTime_(cueElement, rateInfo)
         while parentElement and parentElement.nodeType == Node.ELEMENT_NODE and parentElement.tagName != 'tt':
@@ -182,19 +200,18 @@ class TtmlTextParser:
             return cue
         payload = ''
         nestedCues = []
-        flag = True
-        for childNode in cueElement.childNodes:
-            if childNode.nodeType != Node.TEXT_NODE:
-                flag = False
-                break
+        flag = all(
+            childNode.nodeType == Node.TEXT_NODE
+            for childNode in cueElement.childNodes
+        )
         if flag:
             payload: str = cueElement.firstChild.nodeValue
             if localWhitespaceTrim:
                 payload = payload.strip()
                 payload = re.sub('\s+', ' ', payload)
         else:
-            for childNode in [_ for _ in cueElement.childNodes]:
-                nestedCue = TtmlTextParser.parseCue_(
+            for childNode in list(cueElement.childNodes):
+                if nestedCue := TtmlTextParser.parseCue_(
                     childNode,
                     offset,
                     rateInfo,
@@ -205,8 +222,7 @@ class TtmlTextParser:
                     localWhitespaceTrim,
                     True,
                     cellResolution,
-                )
-                if nestedCue:
+                ):
                     nestedCues.append(nestedCue)
         cue = Cue(start, end, payload)
         cue.nestedCues = nestedCues
@@ -229,7 +245,7 @@ class TtmlTextParser:
                 imageElement = imageElements[0]
                 break
 
-        isLeaf = len(nestedCues) == 0
+        isLeaf = not nestedCues
 
         TtmlTextParser.addStyle_(
             cue,
@@ -251,19 +267,14 @@ class TtmlTextParser:
         if start is None:
             # No start time of your own?  Inherit from the parent.
             start = parentTime[0]
-        else:
-            # Otherwise, the start time is relative to the parent's start time.
-            if parentTime[0] is not None:
-                start += parentTime[0]
+        elif parentTime[0] is not None:
+            start += parentTime[0]
 
         if end is None:
             # No end time of your own?  Inherit from the parent.
             end = parentTime[1]
-        else:
-            # Otherwise, the end time is relative to the parent's _start_ time.
-            # This is not a typo.  Both times are relative to the parent's _start_.
-            if parentTime[0] is not None:
-                end += parentTime[0]
+        elif parentTime[0] is not None:
+            end += parentTime[0]
 
         return start, end
 
@@ -364,18 +375,18 @@ class TtmlTextParser:
 
         _writingMode = TtmlTextParser.getStyleAttribute_(
             cueElement, region, styles, 'writingMode', shouldInheritRegionStyles)
-        if _writingMode == 'tb' or _writingMode == 'tblr':
+        if _writingMode in ['tb', 'tblr']:
             cue.writingMode = writingMode.VERTICAL_LEFT_TO_RIGHT
         elif _writingMode == 'tbrl':
             cue.writingMode = writingMode.VERTICAL_RIGHT_TO_LEFT
-        elif _writingMode == 'rltb' or _writingMode == 'rl':
+        elif _writingMode in ['rltb', 'rl']:
             cue.direction = direction.HORIZONTAL_RIGHT_TO_LEFT
         elif _writingMode:
             cue.direction = direction.HORIZONTAL_LEFT_TO_RIGHT
 
-        align = TtmlTextParser.getStyleAttribute_(
-            cueElement, region, styles, 'textAlign', shouldInheritRegionStyles)
-        if align:
+        if align := TtmlTextParser.getStyleAttribute_(
+            cueElement, region, styles, 'textAlign', shouldInheritRegionStyles
+        ):
             cue.positionAlign = textAlignToPositionAlign_[align]
             cue.lineAlign = textAlignToLineAlign_[align]
 
@@ -384,31 +395,35 @@ class TtmlTextParser:
         else:
             cue.textAlign = textAlign.START
 
-        _displayAlign = TtmlTextParser.getStyleAttribute_(
-            cueElement, region, styles, 'displayAlign', shouldInheritRegionStyles)
-        if _displayAlign:
+        if _displayAlign := TtmlTextParser.getStyleAttribute_(
+            cueElement, region, styles, 'displayAlign', shouldInheritRegionStyles
+        ):
             assert displayAlign.__members__.get(_displayAlign.upper(
             )), f'{_displayAlign.upper()} Should be in Cue.displayAlign values!'
             cue.displayAlign = displayAlign[_displayAlign.upper()]
 
-        color = TtmlTextParser.getStyleAttribute_(
-            cueElement, region, styles, 'color', shouldInheritRegionStyles)
-        if color:
+        if color := TtmlTextParser.getStyleAttribute_(
+            cueElement, region, styles, 'color', shouldInheritRegionStyles
+        ):
             cue.color = color
 
-        backgroundColor = TtmlTextParser.getStyleAttribute_(
-            cueElement, region, styles, 'backgroundColor', shouldInheritRegionStyles)
-        if backgroundColor:
+        if backgroundColor := TtmlTextParser.getStyleAttribute_(
+            cueElement,
+            region,
+            styles,
+            'backgroundColor',
+            shouldInheritRegionStyles,
+        ):
             cue.backgroundColor = backgroundColor
 
-        border = TtmlTextParser.getStyleAttribute_(
-            cueElement, region, styles, 'border', shouldInheritRegionStyles)
-        if border:
+        if border := TtmlTextParser.getStyleAttribute_(
+            cueElement, region, styles, 'border', shouldInheritRegionStyles
+        ):
             cue.border = border
 
-        fontFamily = TtmlTextParser.getStyleAttribute_(
-            cueElement, region, styles, 'fontFamily', shouldInheritRegionStyles)
-        if fontFamily:
+        if fontFamily := TtmlTextParser.getStyleAttribute_(
+            cueElement, region, styles, 'fontFamily', shouldInheritRegionStyles
+        ):
             cue.fontFamily = fontFamily
 
         fontWeight = TtmlTextParser.getStyleAttribute_(
@@ -418,28 +433,23 @@ class TtmlTextParser:
 
         wrapOption = TtmlTextParser.getStyleAttribute_(
             cueElement, region, styles, 'wrapOption', shouldInheritRegionStyles)
-        if wrapOption and wrapOption == 'noWrap':
-            cue.wrapLine = False
-        else:
-            cue.wrapLine = True
-
+        cue.wrapLine = not wrapOption or wrapOption != 'noWrap'
         lineHeight = TtmlTextParser.getStyleAttribute_(
             cueElement, region, styles, 'lineHeight', shouldInheritRegionStyles)
         if lineHeight and unitValues_.match(lineHeight):
             cue.lineHeight = lineHeight
 
-        fontSize = TtmlTextParser.getStyleAttribute_(
-            cueElement, region, styles, 'fontSize', shouldInheritRegionStyles)
-
-        if fontSize:
-            isValidFontSizeUnit = unitValues_.match(
-                fontSize) or percentValue_.match(fontSize)
-            if isValidFontSizeUnit:
+        if fontSize := TtmlTextParser.getStyleAttribute_(
+            cueElement, region, styles, 'fontSize', shouldInheritRegionStyles
+        ):
+            if isValidFontSizeUnit := unitValues_.match(
+                fontSize
+            ) or percentValue_.match(fontSize):
                 cue.fontSize = fontSize
 
-        _fontStyle = TtmlTextParser.getStyleAttribute_(
-            cueElement, region, styles, 'fontStyle', shouldInheritRegionStyles)
-        if _fontStyle:
+        if _fontStyle := TtmlTextParser.getStyleAttribute_(
+            cueElement, region, styles, 'fontStyle', shouldInheritRegionStyles
+        ):
             assert fontStyle.__members__.get(
                 _fontStyle.upper()), f'{_fontStyle.upper()} Should be in Cue.fontStyle values!'
             cue.fontStyle = fontStyle[_fontStyle.upper()]
@@ -450,7 +460,7 @@ class TtmlTextParser:
             backgroundImageEncoding = imageElement.getAttribute('encoding')
             backgroundImageData = imageElement.textContent.trim()
             if backgroundImageType == 'PNG' and backgroundImageEncoding == 'Base64' and backgroundImageData:
-                cue.backgroundImage = 'data:image/pngbase64,' + backgroundImageData
+                cue.backgroundImage = f'data:image/pngbase64,{backgroundImageData}'
 
         letterSpacing = TtmlTextParser.getStyleAttribute_(
             cueElement, region, styles, 'letterSpacing', shouldInheritRegionStyles)
@@ -462,49 +472,49 @@ class TtmlTextParser:
         if linePadding and unitValues_.match(linePadding):
             cue.linePadding = linePadding
 
-        opacity = TtmlTextParser.getStyleAttribute_(
-            cueElement, region, styles, 'opacity', shouldInheritRegionStyles)
-        if opacity:
+        if opacity := TtmlTextParser.getStyleAttribute_(
+            cueElement, region, styles, 'opacity', shouldInheritRegionStyles
+        ):
             cue.opacity = float(opacity)
 
-        textDecorationRegion = TtmlTextParser.getStyleAttributeFromRegion_(
-            region, styles, 'textDecoration')
-        if textDecorationRegion:
+        if textDecorationRegion := TtmlTextParser.getStyleAttributeFromRegion_(
+            region, styles, 'textDecoration'
+        ):
             TtmlTextParser.addTextDecoration_(cue, textDecorationRegion)
 
-        textDecorationElement = TtmlTextParser.getStyleAttributeFromElement_(
-            cueElement, styles, 'textDecoration')
-        if textDecorationElement:
+        if textDecorationElement := TtmlTextParser.getStyleAttributeFromElement_(
+            cueElement, styles, 'textDecoration'
+        ):
             TtmlTextParser.addTextDecoration_(cue, textDecorationElement)
 
     @staticmethod
     def addTextDecoration_(cue: Cue, decoration):
         # 这里可能有问题 .value
         for value in decoration.split(' '):
-            if value == 'underline':
-                if textDecoration.UNDERLINE not in cue.textDecoration:
-                    cue.textDecoration.append(textDecoration.UNDERLINE)
-            elif value == 'noUnderline':
-                cue.textDecoration = [
-                    _ for _ in cue.textDecoration if textDecoration.UNDERLINE != _]
-            elif value == 'lineThrough':
+            if value == 'lineThrough':
                 if textDecoration.LINE_THROUGH not in cue.textDecoration:
                     cue.textDecoration.append(textDecoration.LINE_THROUGH)
             elif value == 'noLineThrough':
                 cue.textDecoration = [
                     _ for _ in cue.textDecoration if textDecoration.LINE_THROUGH != _]
-            elif value == 'overline':
-                if textDecoration.OVERLINE not in cue.textDecoration:
-                    cue.textDecoration.append(textDecoration.OVERLINE)
             elif value == 'noOverline':
                 cue.textDecoration = [
                     _ for _ in cue.textDecoration if textDecoration.OVERLINE != _]
+            elif value == 'noUnderline':
+                cue.textDecoration = [
+                    _ for _ in cue.textDecoration if textDecoration.UNDERLINE != _]
+            elif value == 'overline':
+                if textDecoration.OVERLINE not in cue.textDecoration:
+                    cue.textDecoration.append(textDecoration.OVERLINE)
+            elif value == 'underline':
+                if textDecoration.UNDERLINE not in cue.textDecoration:
+                    cue.textDecoration.append(textDecoration.UNDERLINE)
 
     @staticmethod
     def getStyleAttribute_(cueElement, region, styles, attribute, shouldInheritRegionStyles=True):
-        attr = TtmlTextParser.getStyleAttributeFromElement_(
-            cueElement, styles, attribute)
-        if attr:
+        if attr := TtmlTextParser.getStyleAttributeFromElement_(
+            cueElement, styles, attribute
+        ):
             return attr
         if shouldInheritRegionStyles:
             return TtmlTextParser.getStyleAttributeFromRegion_(region, styles, attribute)
@@ -532,9 +542,9 @@ class TtmlTextParser:
         results = None
         percentage = None
 
-        extent = TtmlTextParser.getStyleAttributeFromRegion_(
-            regionElement, styles, 'extent')
-        if extent:
+        if extent := TtmlTextParser.getStyleAttributeFromRegion_(
+            regionElement, styles, 'extent'
+        ):
             percentage = percentValues_.findall(extent)
             results = percentage or pixelValues_.findall(extent)
             if results is not None:
@@ -554,9 +564,9 @@ class TtmlTextParser:
                     region.heightUnits = units.PERCENTAGE
                 else:
                     region.heightUnits = units.PX
-        origin = TtmlTextParser.getStyleAttributeFromRegion_(
-            regionElement, styles, 'origin')
-        if origin:
+        if origin := TtmlTextParser.getStyleAttributeFromRegion_(
+            regionElement, styles, 'origin'
+        ):
             percentage = percentValues_.findall(origin)
             results = percentage or pixelValues_.findall(origin)
             if len(results) > 0:
@@ -607,8 +617,7 @@ class TtmlTextParser:
     @staticmethod
     def getStyleAttributeFromElement_(cueElement: Element, styles, attribute: str):
         ttsNs = styleNs_
-        elementAttribute = cueElement.getAttributeNS(ttsNs, attribute)
-        if elementAttribute:
+        if elementAttribute := cueElement.getAttributeNS(ttsNs, attribute):
             return elementAttribute
         return TtmlTextParser.getInheritedStyleAttribute_(cueElement, styles, attribute)
 
@@ -632,7 +641,7 @@ class TtmlTextParser:
     @staticmethod
     def getElementsFromCollection_(element: Element, attributeName: str, collection: list, prefixName: str, nsName: str = None):
         items = []
-        if not element or len(collection) < 1:
+        if not element or not collection:
             return items
         attributeValue = TtmlTextParser.getInheritedAttribute_(
             element, attributeName, nsName)
@@ -651,14 +660,13 @@ class TtmlTextParser:
         ttsNs = styleNs_
         if not region:
             return None
-        attr = region.getAttributeNS(ttsNs, attribute)
-        if attr:
+        if attr := region.getAttributeNS(ttsNs, attribute):
             return attr
         return TtmlTextParser.getInheritedStyleAttribute_(region, styles, attribute)
 
     @staticmethod
     def getCellResolution_(cellResolution: str):
-        if cellResolution is None or cellResolution == '':
+        if cellResolution is None or not cellResolution:
             return None
         matches = re.findall('^(\d+) (\d+)$', cellResolution)
         if len(matches) == 0:

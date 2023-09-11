@@ -19,17 +19,16 @@ class VttTextParser:
 
     @staticmethod
     def parseCueStyles(payload: str, rootCue: Cue, styles: Dict[str, Cue]):
-        if len(styles) == 0:
+        if not styles:
             VttTextParser.addDefaultTextColor_(styles)
-        # payload = VttTextParser.replaceColorPayload_(payload)
-        tmp = ''
-        for text in payload.split('\n'):
-            if '<i>' in text and '</i>' not in text:
-                tmp += text + '</i>\n'
-            else:
-                tmp += text + '\n'
+        tmp = ''.join(
+            text + '</i>\n'
+            if '<i>' in text and '</i>' not in text
+            else text + '\n'
+            for text in payload.split('\n')
+        )
         payload = tmp.strip()
-        xmlPayload = '<span>' + escape(payload) + '</span>'
+        xmlPayload = f'<span>{escape(payload)}</span>'
         elements = parseString(xmlPayload).getElementsByTagName(
             'span')  # type: List[Element]
         if len(elements) > 0 and elements[0]:
@@ -38,7 +37,7 @@ class VttTextParser:
             childNodes = element.childNodes  # type: List[Element]
             if len(childNodes) == 1:
                 childNode = childNodes[0]
-                if childNode.nodeType == Node.TEXT_NODE or childNode.nodeType == Node.CDATA_SECTION_NODE:
+                if childNode.nodeType in [Node.TEXT_NODE, Node.CDATA_SECTION_NODE]:
                     rootCue.payload = payload
                     return
             for childNode in childNodes:
@@ -68,7 +67,7 @@ class VttTextParser:
                     nestedCue.fontStyle = italic
                 elif tag == 'u':
                     nestedCue.textDecoration.append(underline)
-        isTextNode = element.nodeType == Node.TEXT_NODE or element.nodeType == Node.CDATA_SECTION_NODE
+        isTextNode = element.nodeType in [Node.TEXT_NODE, Node.CDATA_SECTION_NODE]
         if isTextNode:
             # element 这里是 Text 类型 js的textContent对应这里的data
             textArr = element.data.split('\n')
@@ -106,12 +105,12 @@ class VttTextParser:
                 if not tagEnd or not tagStart:
                     return payload
                 elif tagStart == tagEnd:
-                    newPayload += '/' + tagEnd + '>'
+                    newPayload += f'/{tagEnd}>'
                     i += len(tagEnd) + 1
                 else:
                     if not tagStart.startsWith('c.') or tagEnd != 'c':
                         return payload
-                    newPayload += '/' + tagStart + '>'
+                    newPayload += f'/{tagStart}>'
                     i += len(tagEnd) + 1
             else:
                 if payload[i] == '<':

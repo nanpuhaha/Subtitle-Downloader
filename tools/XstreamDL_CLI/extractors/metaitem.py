@@ -15,12 +15,13 @@ class MetaItem:
         - P8DT11H6M41.1367016S
         - P0Y0M0DT0H3M30.000S
         '''
-        if isinstance(_duration, str) is False:
+        if not isinstance(_duration, str):
             return
 
         def reset_token():
             nonlocal token_unit, token_time
             token_unit, token_time = '', ''
+
         offset = 0
         duration = 0.0
         token_unit = ''
@@ -52,6 +53,6 @@ class MetaItem:
                 duration += int(token_time) * 60
                 reset_token()
             elif token_unit == 'S':
-                duration += float("0" + token_time)
+                duration += float(f"0{token_time}")
                 reset_token()
         return duration

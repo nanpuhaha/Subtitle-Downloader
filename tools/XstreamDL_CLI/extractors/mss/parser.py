@@ -78,10 +78,7 @@ class MSSParser(BaseParser):
             for _ in range(c.r):
                 media_url = streamindex.get_media_url()
                 if last_end_time is None:
-                    if c.t is None:
-                        last_end_time = 0
-                    else:
-                        last_end_time = c.t
+                    last_end_time = 0 if c.t is None else c.t
                 if '{bitrate}' in media_url:
                     media_url = media_url.replace(
                         '{bitrate}', str(qualitylevel.Bitrate))
@@ -107,7 +104,7 @@ class MSSParser(BaseParser):
             for protectionheader in protectionheaders:
                 stream.set_kid(protectionheader.kid)
                 stream.append_key(MSSKey(protectionheader))
-            logger.debug(f'ProtectionHeader was found')
+            logger.debug('ProtectionHeader was found')
         else:
             protection_flag = False
         stream.set_protection_flag(protection_flag)

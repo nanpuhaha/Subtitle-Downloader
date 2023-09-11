@@ -70,13 +70,13 @@ class Concat:
         if len(names) > ONCE_MAX_FILES:
             new_names, _tmp_outs = Concat.gen_new_names(names, out)
             if platform.system() == 'Windows':
-                for _names, _out in new_names:
-                    cmds.append(f'copy /b {"+".join(_names)} "{_out}" > nul')
-                return cmds, _tmp_outs
+                cmds.extend(
+                    f'copy /b {"+".join(_names)} "{_out}" > nul'
+                    for _names, _out in new_names
+                )
             else:
-                for _names, _out in new_names:
-                    cmds.append(f'cat {" ".join(_names)} > "{_out}"')
-                return cmds, _tmp_outs
+                cmds.extend(f'cat {" ".join(_names)} > "{_out}"' for _names, _out in new_names)
+            return cmds, _tmp_outs
         if platform.system() == 'Windows':
             return [f'copy /b {"+".join(names)} "{out}"'], []
         else:

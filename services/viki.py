@@ -113,14 +113,13 @@ class Viki(Service):
                              season_index,
                              episode_num,
                              season_index)
+        elif current_eps and current_eps != episode_num:
+            self.logger.info(self._("\nSeason %s total: %s episode(s)\tupdate to episode %s\tdownload all episodes\n---------------------------------------------------------------"),
+                             season_index, episode_num, current_eps)
         else:
-            if current_eps and current_eps != episode_num:
-                self.logger.info(self._("\nSeason %s total: %s episode(s)\tupdate to episode %s\tdownload all episodes\n---------------------------------------------------------------"),
-                                 season_index, episode_num, current_eps)
-            else:
-                self.logger.info(self._("\nSeason %s total: %s episode(s)\tdownload all episodes\n---------------------------------------------------------------"),
-                                 season_index,
-                                 episode_num)
+            self.logger.info(self._("\nSeason %s total: %s episode(s)\tdownload all episodes\n---------------------------------------------------------------"),
+                             season_index,
+                             episode_num)
 
         if os.path.exists(folder_path):
             shutil.rmtree(folder_path)
@@ -128,8 +127,8 @@ class Viki(Service):
         languages = set()
         subtitles = []
         for episode in episodes:
-            episode_index = int(episode['number'])
             if not self.download_season or season_index in self.download_season:
+                episode_index = int(episode['number'])
                 if not self.download_episode or episode_index in self.download_episode:
                     filename = f'{name}E{str(episode_index).zfill(2)}.WEB-DL.{self.platform}.vtt'
 
@@ -182,10 +181,10 @@ class Viki(Service):
 
         lang_paths = set()
         subtitles = []
-        available_languages = set()
-
         if media_info:
             if 'subtitles' in media_info and media_info['subtitles']:
+                available_languages = set()
+
                 for sub in media_info['subtitles']:
                     if sub['percentage'] > 90:
                         sub_lang = get_language_code(sub['srclang'])

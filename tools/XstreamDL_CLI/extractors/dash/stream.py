@@ -136,20 +136,17 @@ class DASHStream(Stream):
             codecs = 'H265'
         if re.match('vp(09|9)*', codecs):
             codecs = 'VP9'
-        if codecs in ['wvtt', 'ttml', 'stpp']:
+        if codecs in {'wvtt', 'ttml', 'stpp'}:
             codecs = codecs.upper()
         if AUDIO_CODECS.get(codecs) is not None:
-            if 'AAC' in AUDIO_CODECS[codecs]:
-                codecs = 'AAC'
-            else:
-                codecs = AUDIO_CODECS[codecs]
+            codecs = 'AAC' if 'AAC' in AUDIO_CODECS[codecs] else AUDIO_CODECS[codecs]
         self.codecs = codecs
 
     def set_resolution(self, width: str, height: str):
         if width is None or height is None:
             return
         self.resolution = f'{width}x{height}'
-        self.skey += '_' + self.resolution
+        self.skey += f'_{self.resolution}'
 
     def set_stream_type(self, stream_type: str):
         if stream_type is None:

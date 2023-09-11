@@ -75,8 +75,7 @@ class Service(object):
         self.logger.info(
             'ip: %s (%s)', self.ip_info['ip'], self.ip_info['country'])
 
-        proxy = args.proxy or next(iter(self.GEOFENCE), None)
-        if proxy:
+        if proxy := args.proxy or next(iter(self.GEOFENCE), None):
             if len("".join(i for i in proxy if not i.isdigit())) == 2:  # e.g. ie, ie12, us1356
                 proxy = get_proxy(region=proxy, ip_info=self.ip_info,
                                   geofence=self.GEOFENCE, platform=self.platform)
@@ -93,11 +92,7 @@ class Service(object):
                 self.logger.info(
                     " + Proxy was skipped as current region matches")
 
-        if args.region:
-            self.region = args.region.upper()
-        else:
-            self.region = self.ip_info['country']
-
+        self.region = args.region.upper() if args.region else self.ip_info['country']
         self.ripprocess = RipProcess()
 
         self.subtitle_language = self.get_language_list(args.subtitle_language)
@@ -156,13 +151,12 @@ class Service(object):
         if not subtitle_language:
             subtitle_language = config.subtitles['default-language']
 
-        return tuple([
-            language for language in subtitle_language.split(',')])
+        return tuple(list(subtitle_language.split(',')))
 
     def get_subtitle_format(self, subtitle_format):
         """ Get subtitle default format """
 
-        if not subtitle_format or not subtitle_format in SUBTITLE_FORMAT:
+        if not subtitle_format or subtitle_format not in SUBTITLE_FORMAT:
             subtitle_format = config.subtitles['default-format']
         return subtitle_format
 

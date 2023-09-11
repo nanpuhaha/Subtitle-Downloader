@@ -89,10 +89,7 @@ class FridayVideo(Service):
             if '搶先看' in episode['episodeName'] or '預告' in episode['episodeName']:
                 continue
 
-            season_search = re.search(
-                r'(.+)第(\d+)季', episode['chineseName'])
-
-            if season_search:
+            if season_search := re.search(r'(.+)第(\d+)季', episode['chineseName']):
                 title = season_search.group(1).strip()
                 season_index = int(season_search.group(2))
             else:
@@ -110,18 +107,16 @@ class FridayVideo(Service):
                 episode_index = int(episode['episodeName'].split('季')[-1])
             elif episode['episodeName'].isdecimal():
                 episode_index = int(episode['episodeName'])
-            else:
-                if episode['episodeName'][-1].isdecimal():
-                    if not title in episode['episodeName']:
-                        title = episode['episodeName'][:-2]
-                        season_index = 1
-                        episode_index = int(episode['episodeName'][-1])
-                    else:
-                        season_index = 0
-                        episode_index = int(episode['episodeName'][-1])
-                else:
+            elif episode['episodeName'][-1].isdecimal():
+                if title in episode['episodeName']:
                     season_index = 0
-                    episode_index = 1
+                else:
+                    title = episode['episodeName'][:-2]
+                    season_index = 1
+                episode_index = int(episode['episodeName'][-1])
+            else:
+                season_index = 0
+                episode_index = 1
 
             filename = f"{title}.S{str(season_index).zfill(2)}E{str(episode_index).zfill(2)}.WEB-DL.{self.platform}.zh-Hant.vtt"
 
@@ -165,22 +160,18 @@ class FridayVideo(Service):
                                  season_list.count(season_list[-1]),
                                  season_list[-1])
                 episode_list = [episode_list[-1]]
+            elif self.download_season:
+                episode_count = [season_list.count(season) for season in self.download_season]
+                self.logger.info(self._("\nSeason %s total: %s episode(s)\tdownload all episodes\n---------------------------------------------------------------"),
+                                 self.download_season,
+                                 episode_count)
+            elif season_num > 1:
+                self.logger.info(self._("\nTotal: %s episode(s)\tdownload all episodes\n---------------------------------------------------------------"),
+                                 episode_num)
             else:
-                if self.download_season:
-                    episode_count = []
-                    for season in self.download_season:
-                        episode_count.append(season_list.count(season))
-                    self.logger.info(self._("\nSeason %s total: %s episode(s)\tdownload all episodes\n---------------------------------------------------------------"),
-                                     self.download_season,
-                                     episode_count)
-                else:
-                    if season_num > 1:
-                        self.logger.info(self._("\nTotal: %s episode(s)\tdownload all episodes\n---------------------------------------------------------------"),
-                                         episode_num)
-                    else:
-                        self.logger.info(self._("\nSeason %s total: %s episode(s)\tdownload all episodes\n---------------------------------------------------------------"),
-                                         season_num,
-                                         episode_num)
+                self.logger.info(self._("\nSeason %s total: %s episode(s)\tdownload all episodes\n---------------------------------------------------------------"),
+                                 season_num,
+                                 episode_num)
 
             languages = set()
             subtitles = []
@@ -254,15 +245,10 @@ class FridayVideo(Service):
 
         res = self.session.post(
             url=self.config['api']['fet_monitor'].format(url=url), data=data)
-        if res.ok:
-            if res.text == 'OK(Webserver)':
-                return True
-            else:
-                self.logger.error(res.text)
-                sys.exit(1)
-        else:
-            self.logger.error(res.text)
-            sys.exit(1)
+        if res.ok and res.text == 'OK(Webserver)':
+            return True
+        self.logger.error(res.text)
+        sys.exit(1)
 
     def get_subtitle(self, media_info, folder_path, filename):
         data = self.get_media_info(media_info, filename)
@@ -309,10 +295,10 @@ class FridayVideo(Service):
     def main(self):
         """Download subtitle from friDay"""
 
-        content_search = re.search(
-            r'(https:\/\/video\.friday\.tw\/(drama|anime|movie|show)\/detail\/(\d+))', self.url)
-
-        if content_search:
+        if content_search := re.search(
+            r'(https:\/\/video\.friday\.tw\/(drama|anime|movie|show)\/detail\/(\d+))',
+            self.url,
+        ):
             self.monitor_url = content_search.group(1)
             content_id = content_search.group(3)
             content_type = self.get_content_type(content_search.group(2))

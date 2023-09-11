@@ -83,13 +83,9 @@ class KKTV(Service):
 
                     last_ep = [ep['title'] for ep in season['episodes']
                                if re.search(r'第(\d+)[集|話]', ep['title'])][-1]
-                    last_ep = re.findall(r'第(\d+)[集|話]', last_ep)
-
-                    if last_ep:
+                    if last_ep := re.findall(r'第(\d+)[集|話]', last_ep):
                         fill_num = len(str(last_ep[0]))
-                        if fill_num < 2:
-                            fill_num = 2
-
+                        fill_num = max(fill_num, 2)
                     languages = set()
                     subtitles = []
                     ja_lang = False
@@ -116,16 +112,17 @@ class KKTV(Service):
                             if 'ko' in episode['subtitles']:
                                 ko_lang = True
 
-                            episode_uri = episode['mezzanines']['dash']['uri']
-                            if episode_uri:
-                                episode_link_search = re.search(
-                                    r'https:\/\/theater\.kktv\.com\.tw([^"]+)_dash\.mpd', episode_uri)
-                                if episode_link_search:
+                            if episode_uri := episode['mezzanines']['dash']['uri']:
+                                if episode_link_search := re.search(
+                                    r'https:\/\/theater\.kktv\.com\.tw([^"]+)_dash\.mpd',
+                                    episode_uri,
+                                ):
                                     episode_link = episode_link_search.group(
                                         1)
-                                    epsiode_search = re.search(
-                                        self.title_id + '[0-9]{2}([0-9]{4})_', episode_uri)
-                                    if epsiode_search:
+                                    if epsiode_search := re.search(
+                                        self.title_id + '[0-9]{2}([0-9]{4})_',
+                                        episode_uri,
+                                    ):
                                         subtitle_link = f'https://theater-kktv.cdn.hinet.net{episode_link}_sub/zh-Hant.vtt'
 
                                         ja_subtitle_link = subtitle_link.replace(
@@ -150,17 +147,14 @@ class KKTV(Service):
 
                                             languages.add(folder_path)
 
-                                            subtitle = dict()
-                                            subtitle['name'] = filename
-                                            subtitle['path'] = folder_path
-                                            subtitle['url'] = subtitle_link
+                                            subtitle = {'name': filename, 'path': folder_path, 'url': subtitle_link}
                                             subtitles.append(subtitle)
 
                                         if ja_lang and check_url_exist(ja_subtitle_link):
                                             os.makedirs(
                                                 ja_folder_path, exist_ok=True)
                                             languages.add(ja_folder_path)
-                                            subtitle = dict()
+                                            subtitle = {}
                                             subtitle['name'] = ja_filename
                                             subtitle['path'] = ja_folder_path
                                             subtitle['url'] = ja_subtitle_link
@@ -170,7 +164,7 @@ class KKTV(Service):
                                             os.makedirs(
                                                 ko_folder_path, exist_ok=True)
                                             languages.add(ko_folder_path)
-                                            subtitle = dict()
+                                            subtitle = {}
                                             subtitle['name'] = ko_filename
                                             subtitle['path'] = ko_folder_path
                                             subtitle['url'] = ko_subtitle_link

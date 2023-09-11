@@ -51,14 +51,14 @@ class Segment:
         self.index += offset
         if has_init:
             self.index -= 1
-        if name_from_url is False:
+        if not name_from_url:
             self.name = f'{self.index:0>4}{self.suffix}'
 
     def set_offset_for_name(self, offset: int, has_init: bool = False, name_from_url: bool = False):
         self.index = offset
         if has_init:
             self.index -= 1
-        if name_from_url is False:
+        if not name_from_url:
             self.name = f'{self.index:0>4}{self.suffix}'
 
     def set_index(self, index: str):

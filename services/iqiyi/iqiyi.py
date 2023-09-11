@@ -107,13 +107,8 @@ class IQIYI(Service):
 
         episode_num = data['originalTotal']
 
-        if 'maxOrder' in data:
-            current_eps = data['maxOrder']
-        else:
-            current_eps = episode_num
-
-        season_search = re.search(r'(.+)第(.+)季', title)
-        if season_search:
+        current_eps = data['maxOrder'] if 'maxOrder' in data else episode_num
+        if season_search := re.search(r'(.+)第(.+)季', title):
             title = season_search.group(1).strip()
             season_name = cn2an(
                 season_search.group(2))
@@ -131,9 +126,7 @@ class IQIYI(Service):
             start_order = page * 24 + 1
 
             end_order = (page+1) * 24
-            if end_order > current_eps:
-                end_order = current_eps
-
+            end_order = min(end_order, current_eps)
             episode_list_url = self.config['api']['episode_list'].format(
                 album_id=album_id, mode_code=mode_code, lang_code=lang_code, end_order=current_eps, start_order=start_order)
             self.logger.debug("episode_list_url: %s", episode_list_url)
@@ -150,18 +143,17 @@ class IQIYI(Service):
             episode_list = [list(episode_list)[-1]]
             self.logger.info(self._("\nSeason %s total: %s episode(s)\tdownload season %s last episode\n---------------------------------------------------------------"),
                              int(season_name), current_eps, int(season_name))
+        elif current_eps == episode_num:
+            self.logger.info(self._("\nSeason %s total: %s episode(s)\tdownload all episodes\n---------------------------------------------------------------"),
+                             int(season_name),
+                             episode_num)
         else:
-            if current_eps == episode_num:
-                self.logger.info(self._("\nSeason %s total: %s episode(s)\tdownload all episodes\n---------------------------------------------------------------"),
-                                 int(season_name),
-                                 episode_num)
-            else:
-                self.logger.info(
-                    self._(
-                        "\nSeason %s total: %s episode(s)\tupdate to episode %s\tdownload all episodes\n---------------------------------------------------------------"),
-                    int(season_name),
-                    episode_num,
-                    current_eps)
+            self.logger.info(
+                self._(
+                    "\nSeason %s total: %s episode(s)\tupdate to episode %s\tdownload all episodes\n---------------------------------------------------------------"),
+                int(season_name),
+                episode_num,
+                current_eps)
 
         name = rename_filename(
             f'{title}.S{str(season_index).zfill(2)}')
@@ -178,8 +170,8 @@ class IQIYI(Service):
             if 'payMarkFont' in episode and episode['payMarkFont'] == 'Preview':
                 break
             if 'order' in episode:
-                episode_index = int(episode['order'])
                 if not self.download_season or season_index in self.download_season:
+                    episode_index = int(episode['order'])
                     if not self.download_episode or episode_index in self.download_episode:
                         filename = f'{name}E{str(episode_index).zfill(2)}.WEB-DL.{self.platform}.vtt'
                         self.logger.info(
@@ -258,7 +250,7 @@ class IQIYI(Service):
             "bop": '{"version":"10.0","dfp":""}',
             "ut": "1",
         }
-        url = "/dash?" + urlencode(params)
+        url = f"/dash?{urlencode(params)}"
         cmdx5js = os.path.join(os.path.dirname(
             __file__).replace('\\', '/'), 'cmd5x.js')
         process = subprocess.run(f"node {cmdx5js} {quote(url)}",
@@ -295,15 +287,16 @@ class IQIYI(Service):
                             '.vtt', f'.{sub_lang}.xml')
 
                     subtitle_link = self.config['api']['meta'] + \
-                        subtitle_link.replace('\\/', '/')
+                            subtitle_link.replace('\\/', '/')
 
                     os.makedirs(lang_folder_path,
                                 exist_ok=True)
 
-                    subtitle = dict()
-                    subtitle['name'] = subtitle_filename
-                    subtitle['path'] = lang_folder_path
-                    subtitle['url'] = subtitle_link
+                    subtitle = {
+                        'name': subtitle_filename,
+                        'path': lang_folder_path,
+                        'url': subtitle_link,
+                    }
                     subtitles.append(subtitle)
 
             get_all_languages(available_languages=available_languages,
@@ -347,7 +340,7 @@ class IQIYI(Service):
             data = data['initialState']['album']['videoAlbumInfo']
 
             allow_regions = data['regionsAllowed'].split(',')
-            if not self.region.lower() in allow_regions:
+            if self.region.lower() not in allow_regions:
                 self.logger.info(
                     self._("\nThis video is only allows in:\n%s"), ', '.join(allow_regions))
                 sys.exit(0)

@@ -39,7 +39,7 @@ class MPD(MPDItem):
                 self.availabilityStartTime = 0.0
             # 2019-03-05T08:26:06.748000+00:00
             if isinstance(self.availabilityStartTime, str) and self.availabilityStartTime[-9:] == '000+00:00':
-                self.availabilityStartTime = self.availabilityStartTime[:-9] + 'Z'
+                self.availabilityStartTime = f'{self.availabilityStartTime[:-9]}Z'
             try:
                 self.availabilityStartTime = parse_datetime(self.availabilityStartTime).timestamp()
             except Exception:
@@ -51,5 +51,5 @@ class MPD(MPDItem):
                 is_match = True
             except Exception:
                 pass
-            if is_match is False:
-                assert is_match is True, f'match publishTime failed => {self.publishTime}'
+            if not is_match:
+                assert is_match, f'match publishTime failed => {self.publishTime}'

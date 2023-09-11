@@ -44,7 +44,7 @@ def command_handler(args: CmdArgs):
     if args.video_only is True and args.audio_only is True:
         assert False, '--video-only and --audio-only cannot be used at the same time'
     args.save_dir = Path(args.save_dir)
-    if args.save_dir.exists() is False:
+    if not args.save_dir.exists():
         args.save_dir.mkdir()
     args.headers = Headers().get(args)
     args.limit_per_host = int(args.limit_per_host)
@@ -68,20 +68,19 @@ def command_handler(args: CmdArgs):
     else:
         bin_path = Path(__file__).parent.parent / 'binaries'
     if bin_path.exists() is False:
-        args.ffmpeg = 'ffmpeg'
         args.mp4decrypt = 'mp4decrypt'
         args.mp4box = 'mp4box'
+        args.ffmpeg = 'ffmpeg'
         logger.warning(f'binaries folder is not exist > {bin_path}')
+    elif platform.system() == 'Windows':
+        args.ffmpeg = (bin_path / 'ffmpeg.exe').resolve().as_posix()
+        args.mp4decrypt = (
+            bin_path / 'mp4decrypt.exe').resolve().as_posix()
+        args.mp4box = (bin_path / 'mp4box.exe').resolve().as_posix()
     else:
-        if platform.system() == 'Windows':
-            args.ffmpeg = (bin_path / 'ffmpeg.exe').resolve().as_posix()
-            args.mp4decrypt = (
-                bin_path / 'mp4decrypt.exe').resolve().as_posix()
-            args.mp4box = (bin_path / 'mp4box.exe').resolve().as_posix()
-        else:
-            args.ffmpeg = (bin_path / 'ffmpeg').resolve().as_posix()
-            args.mp4decrypt = (bin_path / 'mp4decrypt').resolve().as_posix()
-            args.mp4box = (bin_path / 'mp4box').resolve().as_posix()
+        args.ffmpeg = (bin_path / 'ffmpeg').resolve().as_posix()
+        args.mp4decrypt = (bin_path / 'mp4decrypt').resolve().as_posix()
+        args.mp4box = (bin_path / 'mp4box').resolve().as_posix()
     logger.debug(f'ffmpeg {args.ffmpeg}')
     logger.debug(f'mp4decrypt {args.mp4decrypt}')
     logger.debug(f'mp4box {args.mp4box}')
@@ -89,7 +88,7 @@ def command_handler(args: CmdArgs):
         args.redl_code = [int(_.strip())
                           for _ in args.redl_code.split(',') if _ != '']
     except Exception as e:
-        logger.error(f'parse --redl-code option failed', exc_info=e)
+        logger.error('parse --redl-code option failed', exc_info=e)
         args.redl_code = []
 
 
@@ -220,7 +219,7 @@ def main():
         # 注意 这里不能拿 StreamHandler 做判断
         # 因为 FileHandler 父类是 StreamHandler
         # 这样当 handler 是 FileHandler 的时候 isinstance 返回 True
-        if isinstance(handler, logging.FileHandler) is False:
+        if not isinstance(handler, logging.FileHandler):
             handler.setLevel(logging.getLevelName(args.log_level))
     command_handler(args)
     logger.info(f'use {__version__}, set URI to {args.URI}')

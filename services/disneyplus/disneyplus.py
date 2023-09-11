@@ -31,7 +31,7 @@ class DisneyPlus(Service):
         self._ = get_locale(__name__, self.locale)
 
         self.audio_language = args.audio_language
-        self.profile = dict()
+        self.profile = {}
         self.access_token = ''
 
     def movie_subtitle(self):
@@ -241,20 +241,22 @@ class DisneyPlus(Service):
                 if media.forced == 'YES':
                     sub_lang += '-forced'
 
-                sub = {}
-                sub['lang'] = sub_lang
-                sub['m3u8_url'] = urljoin(media.base_uri, media.uri)
+                sub = {'lang': sub_lang, 'm3u8_url': urljoin(media.base_uri, media.uri)}
                 languages.add(sub_lang)
                 sub_url_list.append(sub)
 
-            if self.audio_language and media.type == 'AUDIO' and not 'Audio Description' in media.name:
+            if (
+                self.audio_language
+                and media.type == 'AUDIO'
+                and 'Audio Description' not in media.name
+            ):
                 audio = {}
-                if media.group_id == 'eac-3':
-                    audio['url'] = f'{base_url}/{media.uri}'
-                    audio['extension'] = '.eac3'
-                elif media.group_id == 'aac-128k':
+                if media.group_id == 'aac-128k':
                     audio['url'] = f'{base_url}/{media.uri}'
                     audio['extension'] = '.aac'
+                elif media.group_id == 'eac-3':
+                    audio['url'] = f'{base_url}/{media.uri}'
+                    audio['extension'] = '.eac3'
                 audio['lang'] = media.language
                 self.logger.debug(audio['url'])
                 audio_url_list.append(audio)
@@ -265,9 +267,7 @@ class DisneyPlus(Service):
         subtitle_list = []
         for sub in sub_url_list:
             if sub['lang'] in self.subtitle_language:
-                subtitle = {}
-                subtitle['lang'] = sub['lang']
-                subtitle['urls'] = []
+                subtitle = {'lang': sub['lang'], 'urls': []}
                 segments = m3u8.load(sub['m3u8_url'])
                 for uri in segments.files:
                     subtitle['urls'].append(urljoin(segments.base_uri, uri))
@@ -295,11 +295,12 @@ class DisneyPlus(Service):
             languages.add(lang_folder_path)
 
             for url in sub['urls']:
-                subtitle = dict()
-                subtitle['name'] = filename
-                subtitle['path'] = lang_folder_path
-                subtitle['url'] = url
-                subtitle['segment'] = True
+                subtitle = {
+                    'name': filename,
+                    'path': lang_folder_path,
+                    'url': url,
+                    'segment': True,
+                }
                 subtitles.append(subtitle)
 
         self.download_subtitle(subtitles, languages)

@@ -35,24 +35,17 @@ class Viu(Service):
         region = ''
         area_id = ''
         language_flag_id = ''
-        region_search = re.search(r'\/ott\/(.+?)\/(.+?)\/', self.url)
-        if region_search:
+        if region_search := re.search(r'\/ott\/(.+?)\/(.+?)\/', self.url):
             region = region_search.group(1)
             language = region_search.group(2)
             if region == 'sg':
                 area_id = 2
                 language_flag_id = ''
-                if 'zh' in language:
-                    language_flag_id = '2'
-                else:
-                    language_flag_id = '3'
+                language_flag_id = '2' if 'zh' in language else '3'
             else:
                 region = 'hk'
                 area_id = 1
-                if 'zh' in language:
-                    language_flag_id = '1'
-                else:
-                    language_flag_id = '3'
+                language_flag_id = '1' if 'zh' in language else '3'
         return region, area_id, language_flag_id
 
     def get_token(self):
@@ -74,9 +67,10 @@ class Viu(Service):
     def series_metadata(self, product_id):
         res = self.session.get(url=self.url, timeout=5)
         if res.ok:
-            match = re.search(
-                r'href=\"\/ott\/(.+)\/index\.php\?r=campaign\/connectwithus\&language_flag_id=(\d+)\&area_id=(\d+)\"', res.text)
-            if match:
+            if match := re.search(
+                r'href=\"\/ott\/(.+)\/index\.php\?r=campaign\/connectwithus\&language_flag_id=(\d+)\&area_id=(\d+)\"',
+                res.text,
+            ):
                 region = match.group(1)
                 language_flag_id = match.group(2)
                 area_id = match.group(3)
@@ -99,9 +93,7 @@ class Viu(Service):
             self.logger.debug(data)
 
             title = data['series']['name']
-            season_search = re.search(
-                r'(.+?)第(.+?)季', title)
-            if season_search:
+            if season_search := re.search(r'(.+?)第(.+?)季', title):
                 title = season_search.group(1).strip()
                 season_name = cn2an(season_search.group(2))
             elif data['series']['name'].split(' ')[-1].isdecimal():
@@ -133,19 +125,18 @@ class Viu(Service):
                 episode_list = [list(episode_list)[-1]]
                 self.logger.info(self._("\nSeason %s total: %s episode(s)\tdownload season %s last episode\n---------------------------------------------------------------"),
                                  season_index, current_eps, season_index)
-            else:
-                if current_eps != episode_num:
-                    self.logger.info(self._("\nSeason %s total: %s episode(s)\tupdate to episode %s\tdownload all episodes\n---------------------------------------------------------------"),
-                                     season_index, episode_num, current_eps)
-                else:
-                    self.logger.info(self._("\nSeason %s total: %s episode(s)\tdownload all episodes\n---------------------------------------------------------------"),
-                                     season_index, episode_num)
+            elif current_eps == episode_num:
+                self.logger.info(self._("\nSeason %s total: %s episode(s)\tdownload all episodes\n---------------------------------------------------------------"),
+                                 season_index, episode_num)
 
+            else:
+                self.logger.info(self._("\nSeason %s total: %s episode(s)\tupdate to episode %s\tdownload all episodes\n---------------------------------------------------------------"),
+                                 season_index, episode_num, current_eps)
             languages = set()
             subtitles = []
             for episode in episode_list:
-                episode_index = int(episode['number'])
                 if not self.download_season or season_index in self.download_season:
+                    episode_index = int(episode['number'])
                     if not self.download_episode or episode_index in self.download_episode:
                         episode_url = re.sub(r'(.+product_id=).+', '\\1',
                                              meta_url) + episode['product_id']
@@ -161,7 +152,9 @@ class Viu(Service):
                             )['data']['current_product']['subtitle']
 
                             available_languages = tuple(
-                                [get_language_code(sub['code']) for sub in episode_data])
+                                get_language_code(sub['code'])
+                                for sub in episode_data
+                            )
                             get_all_languages(available_languages=available_languages,
                                               subtitle_language=self.subtitle_language, locale_=self.locale)
 
@@ -181,9 +174,9 @@ class Viu(Service):
         self.get_token()
         res = self.session.get(url=self.url, timeout=5)
         if res.ok:
-            match = re.search(
-                r'window\.__INITIAL_STATE__=(\{.+?\});', res.text)
-            if match:
+            if match := re.search(
+                r'window\.__INITIAL_STATE__=(\{.+?\});', res.text
+            ):
                 geo_data = orjson.loads(match.group(1))
                 region = geo_data['config']['location']['countryCode']
                 geo = geo_data['config']['location']['geo']
@@ -239,8 +232,8 @@ class Viu(Service):
             languages = set()
             subtitles = []
             for episode in episode_list:
-                episode_index = int(episode['episodeno'])
                 if not self.download_season or season_index in self.download_season:
+                    episode_index = int(episode['episodeno'])
                     if not self.download_episode or episode_index in self.download_episode:
 
                         filename = f'{name}E{str(episode_index).zfill(2)}.WEB-DL.{self.platform}.vtt'
@@ -248,8 +241,10 @@ class Viu(Service):
                         self.logger.info(self._("Finding %s ..."), filename)
 
                         subtitle_data = episode['media']['subtitles']['subtitle']
-                        available_languages = set([get_language_code(
-                            sub['language']) for sub in subtitle_data])
+                        available_languages = {
+                            get_language_code(sub['language'])
+                            for sub in subtitle_data
+                        }
                         get_all_languages(available_languages=available_languages,
                                           subtitle_language=self.subtitle_language, locale_=self.locale)
 
@@ -274,7 +269,6 @@ class Viu(Service):
             self.logger.debug(sub['code'])
             sub_lang = get_language_code(sub['code'])
             if sub_lang in self.subtitle_language:
-                subtitle = dict()
                 if len(self.subtitle_language) > 1:
                     lang_folder_path = os.path.join(folder_path, sub_lang)
                 else:
@@ -283,10 +277,7 @@ class Viu(Service):
                 subtitle_filename = filename.replace(
                     '.vtt', f'.{sub_lang}.vtt')
 
-                subtitle['url'] = sub['subtitle_url'].replace('\\/', '/')
-
-                subtitle['segment'] = False
-
+                subtitle = {'url': sub['subtitle_url'].replace('\\/', '/'), 'segment': False}
                 if 'second_subtitle_url' in sub and sub['second_subtitle_url']:
                     lang_folder_path = os.path.join(
                         lang_folder_path, f"tmp_{subtitle_filename.replace('.vtt', '.srt')}")
@@ -299,10 +290,10 @@ class Viu(Service):
                 subtitles.append(subtitle)
 
                 if 'second_subtitle_url' in sub and sub['second_subtitle_url']:
-                    second_subtitle = dict()
-                    second_subtitle['segment'] = 'comment'
-                    second_subtitle['url'] = sub['second_subtitle_url'].replace(
-                        '\\/', '/')
+                    second_subtitle = {
+                        'segment': 'comment',
+                        'url': sub['second_subtitle_url'].replace('\\/', '/'),
+                    }
                     second_subtitle['name'] = subtitle_filename
                     second_subtitle['path'] = lang_folder_path
                     subtitles.append(second_subtitle)
@@ -322,7 +313,6 @@ class Viu(Service):
             self.logger.debug(sub['language'])
             sub_lang = get_language_code(sub['language'])
             if sub_lang in self.subtitle_language and sub['format'] == 'vtt':
-                subtitle = dict()
                 if len(self.subtitle_language) > 1:
                     lang_folder_path = os.path.join(folder_path, sub_lang)
                 else:
@@ -331,7 +321,7 @@ class Viu(Service):
                 subtitle_filename = filename.replace(
                     '.vtt', f'.{sub_lang}.vtt')
 
-                subtitle['url'] = url_path + '/' + sub['language'] + '.vtt'
+                subtitle = {'url': f'{url_path}/' + sub['language'] + '.vtt'}
                 self.logger.info(subtitle['url'])
 
                 subtitle['segment'] = False

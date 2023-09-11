@@ -28,19 +28,20 @@ class EpisodesNumbersHandler(object):
         self.episodes = episodes
 
     def number_range(self, start: int, end: int):
-        if list(range(start, end + 1)) != []:
+        if not list(range(start, end + 1)):
+            return (
+                list(range(end, start + 1))
+                if list(range(end, start + 1)) != []
+                else [start]
+            )
+        else:
             return list(range(start, end + 1))
-
-        if list(range(end, start + 1)) != []:
-            return list(range(end, start + 1))
-
-        return [start]
 
     def list_number(self, number: str):
         if number.isdigit():
             return [int(number)]
 
-        if number.strip() == "~" or number.strip() == "":
+        if number.strip() in {"~", ""}:
             return self.number_range(1, 999)
 
         if "-" in number:
@@ -85,23 +86,19 @@ def get_locale(name, lang=""):
     if lang and 'zh' in lang:
         current_locale = 'zh'
 
-    if 'zh' in current_locale:
-        locale_ = gettext.translation(
-            name, localedir='locales', languages=['zh-Hant'])
-        locale_.install()
-        return locale_.gettext
-    else:
+    if 'zh' not in current_locale:
         return gettext.gettext
+    locale_ = gettext.translation(
+        name, localedir='locales', languages=['zh-Hant'])
+    locale_.install()
+    return locale_.gettext
 
 
 def get_language_code(lang=''):
     """Convert subtitle language code to ISO_6391 format"""
 
     uniform = lang.lower().replace('_', '-')
-    if ISO_6391.get(uniform):
-        return ISO_6391.get(uniform)
-    else:
-        return lang
+    return ISO_6391.get(uniform) if ISO_6391.get(uniform) else lang
 
 
 def get_all_languages(available_languages, subtitle_language, locale_):

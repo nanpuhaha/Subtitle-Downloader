@@ -94,18 +94,17 @@ class WeTV(Service):
             episode_list = [list(episode_list)[-1]]
             self.logger.info(self._("\nSeason %s total: %s episode(s)\tdownload season %s last episode\n---------------------------------------------------------------"),
                              season_index, current_eps, season_index)
+        elif current_eps == episode_num:
+            self.logger.info(self._("\nSeason %s total: %s episode(s)\tdownload all episodes\n---------------------------------------------------------------"),
+                             season_index,
+                             episode_num)
         else:
-            if current_eps == episode_num:
-                self.logger.info(self._("\nSeason %s total: %s episode(s)\tdownload all episodes\n---------------------------------------------------------------"),
-                                 season_index,
-                                 episode_num)
-            else:
-                self.logger.info(
-                    self._(
-                        "\nSeason %s total: %s episode(s)\tupdate to episode %s\tdownload all episodes\n---------------------------------------------------------------"),
-                    season_index,
-                    episode_num,
-                    current_eps)
+            self.logger.info(
+                self._(
+                    "\nSeason %s total: %s episode(s)\tupdate to episode %s\tdownload all episodes\n---------------------------------------------------------------"),
+                season_index,
+                episode_num,
+                current_eps)
 
         name = rename_filename(
             f'{title}.S{str(season_index).zfill(2)}')
@@ -119,8 +118,8 @@ class WeTV(Service):
             for episode in episode_list:
                 if episode['isTrailer'] == 1:
                     continue
-                episode_index = int(episode['episode'])
                 if not self.download_season or season_index in self.download_season:
+                    episode_index = int(episode['episode'])
                     if not self.download_episode or episode_index in self.download_episode:
                         episode_id = episode['vid']
                         episode_url = self.config['api']['play'].format(
@@ -131,10 +130,9 @@ class WeTV(Service):
                         self.logger.info(
                             self._("Finding %s ..."), filename)
 
-                        episode_data = self.get_dash_url(
-                            cid=series_id, vid=episode_id, url=self.url)
-
-                        if episode_data:
+                        if episode_data := self.get_dash_url(
+                            cid=series_id, vid=episode_id, url=self.url
+                        ):
                             subs, lang_paths = self.get_subtitle(
                                 episode_data, folder_path, filename)
                             subtitles += subs
@@ -198,9 +196,7 @@ class WeTV(Service):
             self.config['api']['getvinfo'], params=params, headers=headers, timeout=5)
 
         if res.ok:
-            callback = re.sub(
-                r'.+?\(({.+})\)', '\\1', res.text)
-            if callback:
+            if callback := re.sub(r'.+?\(({.+})\)', '\\1', res.text):
                 data = orjson.loads(callback)
                 if 'sfl' in data:
                     data = data['sfl']
@@ -243,10 +239,11 @@ class WeTV(Service):
                     os.makedirs(lang_folder_path,
                                 exist_ok=True)
 
-                    subtitle = dict()
-                    subtitle['name'] = subtitle_filename
-                    subtitle['path'] = lang_folder_path
-                    subtitle['url'] = subtitle_link
+                    subtitle = {
+                        'name': subtitle_filename,
+                        'path': lang_folder_path,
+                        'url': subtitle_link,
+                    }
                     subtitles.append(subtitle)
 
             get_all_languages(available_languages=available_languages,
@@ -275,9 +272,10 @@ class WeTV(Service):
 
         res = self.session.get(url=self.url, timeout=5)
         if res.ok:
-            match = re.search(
-                r'<script id=\"__NEXT_DATA__" type=\"application/json\">(.+?)<\/script>', res.text)
-            if match:
+            if match := re.search(
+                r'<script id=\"__NEXT_DATA__" type=\"application/json\">(.+?)<\/script>',
+                res.text,
+            ):
                 data = orjson.loads(match.group(1).strip())[
                     'props']['pageProps']['data']
                 data = orjson.loads(data)

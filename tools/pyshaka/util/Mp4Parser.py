@@ -78,10 +78,7 @@ class Mp4Parser:
                 return
             size = reader.readUint64()
             has64BitSize = True
-        # 和js不一样 py中不存在key会直接异常 所以这里用get方法
-        boxDefinition = self.boxDefinitions_.get(_type)
-
-        if boxDefinition:
+        if boxDefinition := self.boxDefinitions_.get(_type):
             version = None
             flags = None
 
@@ -158,13 +155,14 @@ class Mp4Parser:
 
     @staticmethod
     def typeToString(_type: int):
-        name = bytes([
-            (_type >> 24) & 0xff,
-            (_type >> 16) & 0xff,
-            (_type >> 8) & 0xff,
-            _type & 0xff
-        ]).decode('utf-8')
-        return name
+        return bytes(
+            [
+                (_type >> 24) & 0xFF,
+                (_type >> 16) & 0xFF,
+                (_type >> 8) & 0xFF,
+                _type & 0xFF,
+            ]
+        ).decode('utf-8')
 
     @staticmethod
     def headerSize(box: ParsedBox):

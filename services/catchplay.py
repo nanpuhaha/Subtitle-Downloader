@@ -64,8 +64,7 @@ class CatchPlay(Service):
         self.logger.info(
             self._("\nDownload: %s\n---------------------------------------------------------------"), filename)
 
-        vcms_access_token = self.get_vcms_access_token(program_id)
-        if vcms_access_token:
+        if vcms_access_token := self.get_vcms_access_token(program_id):
             self.get_subtitle(
                 vcms_access_token['play_video_id'], vcms_access_token['play_token'], folder_path, filename)
 
@@ -113,9 +112,9 @@ class CatchPlay(Service):
                     if not self.download_episode or episode_index in self.download_episode:
                         filename = f'{name}E{str(episode_index).zfill(2)}.WEB-DL.{self.platform}.vtt'
                         episode_id = episode['__ref'].replace('Program:', '')
-                        vcms_access_token = self.get_vcms_access_token(
-                            episode_id)
-                        if vcms_access_token:
+                        if vcms_access_token := self.get_vcms_access_token(
+                            episode_id
+                        ):
                             self.logger.info(
                                 self._("\nDownload: %s\n---------------------------------------------------------------"), filename)
                             self.get_subtitle(
@@ -197,10 +196,11 @@ class CatchPlay(Service):
                     self.logger.debug(subtitle_link)
                     os.makedirs(lang_folder_path,
                                 exist_ok=True)
-                    subtitle = dict()
-                    subtitle['name'] = subtitle_filename
-                    subtitle['path'] = lang_folder_path
-                    subtitle['url'] = subtitle_link
+                    subtitle = {
+                        'name': subtitle_filename,
+                        'path': lang_folder_path,
+                        'url': subtitle_link,
+                    }
                     subtitles.append(subtitle)
 
                 download_files(subtitles)
@@ -216,9 +216,10 @@ class CatchPlay(Service):
     def main(self):
         res = self.session.get(url=self.url, timeout=5)
         if res.ok:
-            match = re.search(
-                r'<script id=\"__NEXT_DATA__" type=\"application/json\">(.+?)<\/script>', res.text)
-            if match:
+            if match := re.search(
+                r'<script id=\"__NEXT_DATA__" type=\"application/json\">(.+?)<\/script>',
+                res.text,
+            ):
                 data = orjson.loads(match.group(1).strip())['props']
                 program_id = os.path.basename(self.url)
                 if data['apolloState'][f'Program:{program_id}']['type'] == 'MOVIE':

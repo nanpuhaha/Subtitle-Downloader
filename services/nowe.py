@@ -58,12 +58,11 @@ class NowE(Service):
             data = res.json()
             if 'OTTSESSIONID' in data:
                 return data['OTTSESSIONID']
-            else:
-                self.logger.error(
-                    self._("\nPlease renew the cookies, and make sure user_config.toml's User-Agent is same as %s in the browser!"), self.platform)
-                os.remove(
-                    Path(config.directories['cookies']) / credentials[self.platform]['cookies'])
-                sys.exit(1)
+            self.logger.error(
+                self._("\nPlease renew the cookies, and make sure user_config.toml's User-Agent is same as %s in the browser!"), self.platform)
+            os.remove(
+                Path(config.directories['cookies']) / credentials[self.platform]['cookies'])
+            sys.exit(1)
         else:
             self.logger.error(res.text)
 
@@ -81,18 +80,15 @@ class NowE(Service):
 
         if res.ok:
             return res.json()['productDetailList'][0]
-        else:
-            self.logger.error(res.text)
-            sys.exit(1)
+        self.logger.error(res.text)
+        sys.exit(1)
 
     def movie_metadata(self, data):
         title = data['brandName'].replace('Now 爆谷台呈獻: ', '')
         content_id = data['episodeId']
 
         release_year = ''
-        movie_info = self.get_title_info(
-            title=title, title_aliases=[title])
-        if movie_info:
+        if movie_info := self.get_title_info(title=title, title_aliases=[title]):
             release_year = movie_info['release_date'][:4]
 
         if release_year:
@@ -117,9 +113,7 @@ class NowE(Service):
         title = data['brandName']
         season_index = int(data['seasonNum'])
         if season_index == 0:
-            season_search = re.search(
-                r'(.+?)第(.+?)季', data['brandName'])
-            if season_search:
+            if season_search := re.search(r'(.+?)第(.+?)季', data['brandName']):
                 title = season_search.group(1).strip()
                 season_index = int(cn2an(season_search.group(2)))
             else:
@@ -151,8 +145,8 @@ class NowE(Service):
                              episode_num)
 
         for episode in episode_list:
-            episode_index = int(episode['episodeNum'])
             if not self.download_season or season_index in self.download_season:
+                episode_index = int(episode['episodeNum'])
                 if not self.download_episode or episode_index in self.download_episode:
                     content_id = episode['episodeId']
                     filename = f'{name}E{str(episode_index).zfill(2)}.WEB-DL.{self.platform}'

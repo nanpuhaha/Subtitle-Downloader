@@ -141,9 +141,8 @@ class Login(object):
             url=self.config['api']['grant'], data=json.dumps(data), headers=headers)
         if res.ok:
             return res.json()['assertion']
-        else:
-            self.logger.error(res.text)
-            sys.exit(1)
+        self.logger.error(res.text)
+        sys.exit(1)
 
     def final_token(self, subject_token, client_apikey):
 
@@ -195,10 +194,12 @@ class Login(object):
         if res.ok:
             self.logger.debug(res.json())
             user = res.json()
-            profile = dict()
-            profile['name'] = user['activeProfile']['profileName']
-            profile['language'] = user['activeProfile']['attributes']['languagePreferences']['appLanguage']
-
+            profile = {
+                'name': user['activeProfile']['profileName'],
+                'language': user['activeProfile']['attributes'][
+                    'languagePreferences'
+                ]['appLanguage'],
+            }
             self.logger.info(
                 self._("\nSuccessfully logged in. Welcome %s!"), profile['name'])
 
@@ -220,9 +221,8 @@ class Login(object):
         res = self.session.get(url=session_url, headers=headers, timeout=5)
         if res.ok:
             return res.json()['location']['country_code']
-        else:
-            self.logger.error(res.text)
-            sys.exit(1)
+        self.logger.error(res.text)
+        sys.exit(1)
 
     def get_auth_token(self):
         client_id, client_apikey = self.client_info()

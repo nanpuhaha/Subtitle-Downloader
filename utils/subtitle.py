@@ -34,7 +34,13 @@ def convert_utf8(srcfile):
     from_codec = get_encoding_type(srcfile)
     try:
         if from_codec and from_codec.lower() != 'utf-8':
-            if from_codec == 'BIG5' or from_codec == 'GBK' or from_codec == 'GB2312' or from_codec == 'Windows-1252' or from_codec == 'ISO-8859-1':
+            if from_codec in [
+                'BIG5',
+                'GBK',
+                'GB2312',
+                'Windows-1252',
+                'ISO-8859-1',
+            ]:
                 from_codec = 'CP950'
 
             with open(srcfile, 'r', encoding=from_codec, errors='replace') as input_src:
@@ -55,9 +61,7 @@ def is_subtitle(file_path, file_format=''):
 
     extenison = Path(file_path).suffix.lower()
     if os.path.isfile(file_path) and Path(file_path).stat().st_size > 0 and extenison in SUBTITLE_FORMAT:
-        if file_format and file_format != extenison:
-            return False
-        return True
+        return not file_format or file_format == extenison
 
 
 def set_ass_style(subs):
@@ -147,12 +151,10 @@ def archive_subtitle(folder_path, platform="", locale=""):
     """
     _ = get_locale(__name__, locale)
 
-    contain_subtitle = False
-    for path, dirs, files in os.walk(folder_path):
-        if any('.srt' in s for s in files):
-            contain_subtitle = True
-            break
-
+    contain_subtitle = any(
+        any('.srt' in s for s in files)
+        for path, dirs, files in os.walk(folder_path)
+    )
     if not contain_subtitle:
         sys.exit(0)
 
@@ -176,10 +178,8 @@ def ms_to_timestamp(ms: int) -> str:
     """
     max_representable_time = 359999999
 
-    if ms < 0:
-        ms = 0
-    if ms > max_representable_time:
-        ms = max_representable_time
+    ms = max(ms, 0)
+    ms = min(ms, max_representable_time)
     return "%02d:%02d:%02d,%03d" % (pysubs2.time.ms_to_times(ms))
 
 
@@ -292,8 +292,7 @@ def format_zh_subtitle(subs):
 
             text = re.sub(r'\u3000\u3000', ' -', text)
 
-            conversation = re.search(r'( )-[ \u4E00-\u9FFF「0-9]+', text)
-            if conversation:
+            if conversation := re.search(r'( )-[ \u4E00-\u9FFF「0-9]+', text):
                 text = text.replace(' -', '\n-')
 
             text = re.sub(r'(^[「\u4E00-\u9FFF]+.*?)\n-', '-\\1\n-', text)

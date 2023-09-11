@@ -37,8 +37,7 @@ class DASHSegment(Segment):
 
     def get_url_name(self, url: str):
         url_name = urlparse(url).path.split('/')[-1]
-        match = re.match('Fragments\((.+?)\)', url_name)
-        if match:
+        if match := re.match('Fragments\((.+?)\)', url_name):
             url_name = match.group(1).split(
                 ',')[0].replace('=', '_') + self.suffix
         return url_name

@@ -85,7 +85,7 @@ class PyshakaArgs(object):
         self.type = 'wvtt'
         self.init_path = os.path.join(segments_path, 'init.mp4')
         self.segments_path = segments_path
-        self.debug = True if log_level == logging.DEBUG else False
+        self.debug = log_level == logging.DEBUG
         self.segment_time = 0
 
 
@@ -106,11 +106,7 @@ class RipProcess(object):
                 'user-agent': user_agent
             }
 
-        if url_patch:
-            url_patch = f"?{urlparse(url).query}"
-        else:
-            url_patch = ""
-
+        url_patch = f"?{urlparse(url).query}" if url_patch else ""
         args = XstreamArgs(save_dir=folder_path, url_patch=url_patch,
                            headers=headers, proxy=proxy, log_level=log_level)
 
